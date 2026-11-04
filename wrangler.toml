@@ -1,16 +1,19 @@
 name = "school-info-system"
 compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat"]
-pages_build_output_dir = ".svelte-kit/cloudflare"
+
+main = ".svelte-kit/cloudflare/_worker.js"
+
+[assets]
+directory = ".svelte-kit/cloudflare"
+binding = "ASSETS"
+
+[vars]
+ENVIRONMENT = "production"
+AUTH_SECRET = "local-dev-dev-secret-change-me-in-production-please-change"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "school-info-db"
-database_id = "<dari wrangler d1 create>"
+database_id = "15e3ddc5-dda1-464c-b0d8-c97e52a3a4c9"
 
-[[r2_buckets]]
-binding = "EVIDENCE_BUCKET"
-bucket_name = "school-evidence"
-
-[vars]
-ENVIRONMENT = "production"
