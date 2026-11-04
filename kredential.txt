@@ -1,0 +1,14 @@
+============================================================
+KREDENSIAL SUPERADMIN — Sistem Informasi Sekolah
+============================================================
+
+Role      : Superadmin
+Email     : admin@sis.id
+Password  : superadmin123
+
+Catatan:
+- Ganti password setelah login pertama kali!
+- Akun ini memiliki akses penuh ke semua tenant (sekolah).
+- Jangan bagikan kredensial ini kepada orang yang tidak berwenang.
+
+============================================================

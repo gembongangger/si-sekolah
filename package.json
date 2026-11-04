@@ -1,0 +1,43 @@
+{
+	"name": "school-info-system",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"prepare": "svelte-kit sync || echo ''",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+	},
+	"devDependencies": {
+		"@libsql/client": "^0.18.0",
+		"@sveltejs/adapter-cloudflare": "^8.0.2",
+		"@sveltejs/kit": "^3.1.1",
+		"@sveltejs/vite-plugin-svelte": "^7.2.0",
+		"eslint": "^9.39.2",
+		"eslint-config-prettier": "^10.1.8",
+		"globals": "^16.4.0",
+		"prettier": "^3.6.2",
+		"svelte": "^5.57.2",
+		"svelte-check": "^4.6.0",
+		"typescript": "^6.0.3",
+		"vite": "^8.3.0",
+		"vitest": "^3.2.4"
+	},
+	"imports": {
+		"#lib": "./src/lib/index.ts",
+		"#lib/*": "./src/lib/*"
+	},
+	"dependencies": {
+		"@tailwindcss/vite": "^4.3.3",
+		"bcryptjs": "^3.0.3",
+		"drizzle-kit": "^0.31.11",
+		"drizzle-orm": "^0.45.4",
+		"lucia": "^3.2.2",
+		"sveltekit-superforms": "^3.1.0",
+		"tailwindcss": "^4.3.3",
+		"zod": "^4.6.7"
+	}
+}
