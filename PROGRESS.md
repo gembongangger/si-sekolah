@@ -128,3 +128,34 @@ Semua route `/dashboard/*` dilindungi auth guard — redirect ke `/login` jika b
 - `import { type Handle } from '@sveltejs/kit'` → `@sveltejs/kit/hooks` (`Handle` dipindah).
 - `import { dev } from '$app/environment'` → `'$app/env'` (`dev` resmi di `@sveltejs/kit/types`).
 - Cookie session: `secure: !dev` supaya login bisa dipakai di dev via `http://localhost`/LAN.
+
+---
+
+## ☁️ DEPLOYMENT CLOUDFLARE (sesi ini)
+
+**Status:** ✅ Worker `school-info-system` berhasil di-deploy (manual via wrangler + via GitHub Actions).
+
+- **Worker:** `https://school-info-system.gembongangger.workers.dev`
+- **Binding:** D1 `school-info-db` (id: `15e3ddc5-dda1-464c-b0d8-c97e52a3a4c9`), Assets, ENVIRONMENT=production, AUTH_SECRET.
+- **Migrasi D1** (0000–0003) + **seed superadmin** (`admin@sis.id` / `superadmin123`) di-apply ke production.
+
+**Masalah production:** Worker production tampil 500 pada route SSR (`GET /login`) — penyebabnya `event.platform?.env?.DB` tidak terisi di build Worker (SvelteKit worker build tidak meneruskan platform via respond options), sehingga hook jatuh ke fallback SQLite lokal (`file:`) → gagal di workerd.
+
+**Perbaikan production:**
+1. `src/hooks.server.ts` — logika baru: `dev ? createLocalDb() : createDb(env dari 'cloudflare:workers')`.
+2. `src/app.d.ts` — tambah `/// <reference types="@cloudflare/workers-types/experimental" />` agar modul `cloudflare:workers` ter-typable.
+
+**Verifikasi production:**
+- `GET /login` → **200** ✅ (sebelum: 500).
+- `POST /login` (dengan Origin, seperti browser) → session cookie `auth_session` + redirect ke `/dashboard`.
+- `GET /dashboard` dengan cookie → **200** (render "Dashboard").
+
+**GitHub Actions:** `.github/workflows/deploy.yml` (push ke `main` → `wrangler deploy`).
+- Workflow pertama kali **gagal** karena secret `CLOUDFLARE_API_TOKEN` belum diset di GitHub repo.
+- **Langkah yang perlu dilakukan user:** tambahkan repo secrets di GitHub:
+  - `CLOUDFLARE_API_TOKEN` — token Cloudflare (scope: Workers Scripts Deploy / Edit)
+  - `CLOUDFLARE_ACCOUNT_ID` — `e528c3f3d0361f2fe3a1ab4fdf9c1722`
+
+**Catatan sisa:**
+- R2 bucket `school-evidence` belum diaktifkan di akun Cloudflare (harus lewat dashboard) → blokir deploy jika ditambahkan kembali.
+- `AUTH_SECRET` di `wrangler.toml` masih placeholder → ganti sebelum dipakai serius.
