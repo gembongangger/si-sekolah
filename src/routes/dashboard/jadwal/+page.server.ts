@@ -2,7 +2,7 @@ import { error, redirect } from '@sveltejs/kit';
 import { superValidate, message } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters/zod4';
 import type { PageServerLoad, Actions } from './$types';
-import { requireAdminSekolah } from '$lib/server/auth/guard';
+import { requireRole, requireAdminSekolah } from '$lib/server/auth/guard';
 import { scheduleSchema } from '$lib/validation/schedule';
 import {
 	schedules,
@@ -10,7 +10,8 @@ import {
 	subjects,
 	users,
 	timeSlots,
-	academicYears
+	academicYears,
+	students
 } from '$lib/server/db/schema';
 import { eq, and, isNull, desc } from 'drizzle-orm';
 
@@ -25,9 +26,31 @@ const dayLabels: Record<number, string> = {
 };
 
 export const load: PageServerLoad = async ({ locals }) => {
-	const user = requireAdminSekolah(locals.user);
+	const user = requireRole(locals.user, 'admin_sekolah', 'guru', 'siswa');
+	if (user.schoolId === null) {
+		throw error(403, 'User harus memiliki sekolah terkait');
+	}
 	const db = locals.db;
 	const schoolId = user.schoolId;
+	const isAdmin = user.role === 'admin_sekolah';
+
+	// Scope data sesuai role:
+	// - admin_sekolah: semua jadwal sekolah
+	// - guru: hanya jadwal yang ia ampu
+	// - siswa: hanya jadwal kelasnya
+	let scopeCondition;
+	if (isAdmin) {
+		scopeCondition = undefined;
+	} else if (user.role === 'guru') {
+		scopeCondition = eq(schedules.teacher_id, user.userId);
+	} else {
+		const studentRows = await db
+			.select({ class_id: students.class_id })
+			.from(students)
+			.where(and(eq(students.school_id, schoolId), eq(students.user_id, user.userId)));
+		const classId = studentRows[0]?.class_id ?? -1;
+		scopeCondition = eq(schedules.class_id, classId);
+	}
 
 	const list = await db
 		.select({
@@ -60,58 +83,74 @@ export const load: PageServerLoad = async ({ locals }) => {
 		.where(
 			and(
 				eq(schedules.school_id, schoolId),
-				isNull(schedules.deleted_at)
+				isNull(schedules.deleted_at),
+				...(scopeCondition ? [scopeCondition] : [])
 			)
 		)
-		.orderBy(desc(schedules.created_at));
+		.orderBy(...(isAdmin ? [desc(schedules.created_at)] : [schedules.time_slot_id]));
 
-	// Dropdown data
-	const academicYearList = await db
-		.select({ id: academicYears.id, name: academicYears.name, semester: academicYears.semester })
-		.from(academicYears)
-		.where(and(eq(academicYears.school_id, schoolId), isNull(academicYears.deleted_at)))
-		.orderBy(desc(academicYears.created_at));
-
-	const classList = await db
-		.select({ id: classes.id, name: classes.name, level: classes.level })
-		.from(classes)
-		.where(and(eq(classes.school_id, schoolId), isNull(classes.deleted_at)))
-		.orderBy(classes.name);
-
-	const subjectList = await db
-		.select({ id: subjects.id, code: subjects.code, name: subjects.name })
-		.from(subjects)
-		.where(and(eq(subjects.school_id, schoolId), isNull(subjects.deleted_at)))
-		.orderBy(subjects.name);
-
-	const teacherList = await db
-		.select({ id: users.id, name: users.name })
-		.from(users)
-		.where(
-			and(
-				eq(users.role, 'guru'),
-				eq(users.school_id, schoolId),
-				isNull(users.deleted_at),
-				eq(users.is_active, 1)
-			)
-		)
-		.orderBy(users.name);
-
-	const timeSlotList = await db
-		.select({
-			id: timeSlots.id,
-			day_of_week: timeSlots.day_of_week,
-			slot_number: timeSlots.slot_number,
-			start_time: timeSlots.start_time,
-			end_time: timeSlots.end_time
-		})
-		.from(timeSlots)
-		.where(and(eq(timeSlots.school_id, schoolId), isNull(timeSlots.deleted_at)))
-		.orderBy(timeSlots.day_of_week, timeSlots.slot_number);
+	// Dropdown data — hanya admin yang punya hak tambah/ubah jadwal
+	type Option = { id: number; name: string; code?: string; level?: string; semester?: string };
+	type TSOption = {
+		id: number;
+		day_of_week: number;
+		slot_number: number;
+		start_time: string;
+		end_time: string;
+	};
+	const [academicYearList, classList, subjectList, teacherList, timeSlotList]: [
+		Option[],
+		Option[],
+		Option[],
+		Option[],
+		TSOption[]
+	] = isAdmin
+		? await Promise.all([
+				db
+					.select({ id: academicYears.id, name: academicYears.name, semester: academicYears.semester })
+					.from(academicYears)
+					.where(and(eq(academicYears.school_id, schoolId), isNull(academicYears.deleted_at)))
+					.orderBy(desc(academicYears.created_at)),
+				db
+					.select({ id: classes.id, name: classes.name, level: classes.level })
+					.from(classes)
+					.where(and(eq(classes.school_id, schoolId), isNull(classes.deleted_at)))
+					.orderBy(classes.name),
+				db
+					.select({ id: subjects.id, name: subjects.name, code: subjects.code })
+					.from(subjects)
+					.where(and(eq(subjects.school_id, schoolId), isNull(subjects.deleted_at)))
+					.orderBy(subjects.name),
+				db
+					.select({ id: users.id, name: users.name })
+					.from(users)
+					.where(
+						and(
+							eq(users.role, 'guru'),
+							eq(users.school_id, schoolId),
+							isNull(users.deleted_at),
+							eq(users.is_active, 1)
+						)
+					)
+					.orderBy(users.name),
+				db
+					.select({
+						id: timeSlots.id,
+						day_of_week: timeSlots.day_of_week,
+						slot_number: timeSlots.slot_number,
+						start_time: timeSlots.start_time,
+						end_time: timeSlots.end_time
+					})
+					.from(timeSlots)
+					.where(and(eq(timeSlots.school_id, schoolId), isNull(timeSlots.deleted_at)))
+					.orderBy(timeSlots.day_of_week, timeSlots.slot_number)
+			])
+		: [[], [], [], [], []];
 
 	const form = await superValidate(zod(scheduleSchema));
 
 	return {
+		viewerRole: user.role,
 		schedules: list,
 		dayLabels,
 		academicYears: academicYearList,

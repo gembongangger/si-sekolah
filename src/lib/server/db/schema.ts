@@ -58,7 +58,7 @@ export const users = sqliteTable(
 		deleted_at: integer('deleted_at')
 	},
 	(t): SQLiteTableExtraConfigValue[] => [
-		check('users_role_check', sql`role IN ('superadmin', 'admin_sekolah', 'guru', 'siswa')`),
+		check('users_role_check', sql`role IN ('superadmin', 'admin_sekolah', 'admin_keuangan', 'guru', 'siswa')`),
 		check(
 			'users_school_role_check',
 			sql`(role = 'superadmin' AND school_id IS NULL) OR (role <> 'superadmin' AND school_id IS NOT NULL)`
@@ -496,6 +496,49 @@ export const sanctions = sqliteTable(
 	]
 );
 
+// Sanksi yang sudah pernah ter-trigger untuk siswa (dedupe per tier/tahun ajaran)
+export const studentSanctions = sqliteTable(
+	'student_sanctions',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		school_id: integer('school_id').notNull(),
+		student_id: integer('student_id').notNull(),
+		sanction_id: integer('sanction_id').notNull(),
+		academic_year_id: integer('academic_year_id').notNull(),
+		total_points: integer('total_points').notNull(),
+		applied_by: integer('applied_by'),
+		created_at: integer('created_at').notNull().default(sql`(unixepoch('subsec') * 1000)`)
+	},
+	(t): SQLiteTableExtraConfigValue[] => [
+		index('idx_student_sanctions_school_student').on(t.school_id, t.student_id),
+		unique('student_sanctions_student_sanction_year_unique').on(
+			t.student_id,
+			t.sanction_id,
+			t.academic_year_id
+		),
+		foreignKey({
+			name: 'student_sanctions_school_id_schools_id_fk',
+			columns: [t.school_id],
+			foreignColumns: [schools.id]
+		}).onDelete('cascade'),
+		foreignKey({
+			name: 'student_sanctions_student_id_students_id_fk',
+			columns: [t.student_id],
+			foreignColumns: [students.id]
+		}).onDelete('cascade'),
+		foreignKey({
+			name: 'student_sanctions_sanction_id_sanctions_id_fk',
+			columns: [t.sanction_id],
+			foreignColumns: [sanctions.id]
+		}).onDelete('cascade'),
+		foreignKey({
+			name: 'student_sanctions_academic_year_id_academic_years_id_fk',
+			columns: [t.academic_year_id],
+			foreignColumns: [academicYears.id]
+		}).onDelete('cascade')
+	]
+);
+
 // =========================================================
 // 8. JADWAL SEKOLAH
 // =========================================================
@@ -645,6 +688,224 @@ export const notifications = sqliteTable(
 	]
 );
 
+// =========================================================
+// 10. KEUANGAN & PEMBAYARAN SPP
+// =========================================================
+export const sppSettings = sqliteTable(
+	'spp_settings',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		school_id: integer('school_id').notNull(),
+		academic_year_id: integer('academic_year_id').notNull(),
+		level: text('level').notNull(),
+		amount: integer('amount').notNull(),
+		description: text('description'),
+		created_at: integer('created_at').notNull().default(sql`(unixepoch('subsec') * 1000)`),
+		updated_at: integer('updated_at').notNull().default(sql`(unixepoch('subsec') * 1000)`),
+		deleted_at: integer('deleted_at')
+	},
+	(t): SQLiteTableExtraConfigValue[] => [
+		index('idx_spp_settings_school_year').on(t.school_id, t.academic_year_id),
+		index('idx_spp_settings_deleted_at').on(t.deleted_at),
+		unique('spp_settings_school_year_level_unique').on(t.school_id, t.academic_year_id, t.level),
+		check('spp_settings_amount_check', sql`amount >= 0`),
+		foreignKey({
+			name: 'spp_settings_school_id_schools_id_fk',
+			columns: [t.school_id],
+			foreignColumns: [schools.id]
+		}).onDelete('cascade'),
+		foreignKey({
+			name: 'spp_settings_academic_year_id_academic_years_id_fk',
+			columns: [t.academic_year_id],
+			foreignColumns: [academicYears.id]
+		}).onDelete('cascade')
+	]
+);
+
+export const sppPayments = sqliteTable(
+	'spp_payments',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		school_id: integer('school_id').notNull(),
+		student_id: integer('student_id').notNull(),
+		academic_year_id: integer('academic_year_id').notNull(),
+		month: integer('month').notNull(),
+		month_name: text('month_name').notNull(),
+		year: integer('year').notNull(),
+		amount: integer('amount').notNull(),
+		amount_paid: integer('amount_paid').notNull().default(0),
+		status: text('status').notNull().default('pending'),
+		payment_date: text('payment_date'),
+		payment_method: text('payment_method').notNull().default('cash'),
+		invoice_number: text('invoice_number'),
+		received_by: integer('received_by'),
+		notes: text('notes'),
+		created_at: integer('created_at').notNull().default(sql`(unixepoch('subsec') * 1000)`),
+		updated_at: integer('updated_at').notNull().default(sql`(unixepoch('subsec') * 1000)`),
+		deleted_at: integer('deleted_at')
+	},
+	(t): SQLiteTableExtraConfigValue[] => [
+		index('idx_spp_payments_school_student').on(t.school_id, t.student_id),
+		index('idx_spp_payments_school_status').on(t.school_id, t.status),
+		index('idx_spp_payments_school_year_month').on(t.school_id, t.academic_year_id, t.month),
+		index('idx_spp_payments_deleted_at').on(t.deleted_at),
+		unique('spp_payments_school_student_year_month_unique').on(
+			t.school_id,
+			t.student_id,
+			t.academic_year_id,
+			t.month,
+			t.year
+		),
+		check('spp_payments_status_check', sql`status IN ('pending', 'paid')`),
+		check('spp_payments_month_check', sql`month BETWEEN 1 AND 12`),
+		check('spp_payments_amount_check', sql`amount >= 0`),
+		check('spp_payments_amount_paid_check', sql`amount_paid >= 0`),
+		foreignKey({
+			name: 'spp_payments_school_id_schools_id_fk',
+			columns: [t.school_id],
+			foreignColumns: [schools.id]
+		}).onDelete('cascade'),
+		foreignKey({
+			name: 'spp_payments_student_id_students_id_fk',
+			columns: [t.student_id],
+			foreignColumns: [students.id]
+		}).onDelete('cascade'),
+		foreignKey({
+			name: 'spp_payments_academic_year_id_academic_years_id_fk',
+			columns: [t.academic_year_id],
+			foreignColumns: [academicYears.id]
+		}).onDelete('cascade'),
+		foreignKey({
+			name: 'spp_payments_received_by_users_id_fk',
+			columns: [t.received_by],
+			foreignColumns: [users.id]
+		}).onDelete('set null')
+	]
+);
+
+// =========================================================
+// 11. PPDB (PENERIMAAN PESERTA DIDIK BARU)
+// =========================================================
+export const ppdbBatches = sqliteTable(
+	'ppdb_batches',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		school_id: integer('school_id').notNull(),
+		academic_year_id: integer('academic_year_id').notNull(),
+		name: text('name').notNull(),
+		start_date: text('start_date').notNull(),
+		end_date: text('end_date').notNull(),
+		quota: integer('quota').notNull().default(100),
+		registration_fee: integer('registration_fee').notNull().default(0),
+		description: text('description'),
+		is_active: integer('is_active').notNull().default(1),
+		created_at: integer('created_at').notNull().default(sql`(unixepoch('subsec') * 1000)`),
+		updated_at: integer('updated_at').notNull().default(sql`(unixepoch('subsec') * 1000)`),
+		deleted_at: integer('deleted_at')
+	},
+	(t): SQLiteTableExtraConfigValue[] => [
+		index('idx_ppdb_batches_school_year').on(t.school_id, t.academic_year_id),
+		index('idx_ppdb_batches_active').on(t.school_id, t.is_active),
+		index('idx_ppdb_batches_deleted_at').on(t.deleted_at),
+		check('ppdb_batches_is_active_check', sql`is_active IN (0, 1)`),
+		check('ppdb_batches_quota_check', sql`quota >= 0`),
+		check('ppdb_batches_fee_check', sql`registration_fee >= 0`),
+		foreignKey({
+			name: 'ppdb_batches_school_id_schools_id_fk',
+			columns: [t.school_id],
+			foreignColumns: [schools.id]
+		}).onDelete('cascade'),
+		foreignKey({
+			name: 'ppdb_batches_academic_year_id_academic_years_id_fk',
+			columns: [t.academic_year_id],
+			foreignColumns: [academicYears.id]
+		}).onDelete('cascade')
+	]
+);
+
+export const ppdbRegistrations = sqliteTable(
+	'ppdb_registrations',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		school_id: integer('school_id').notNull(),
+		batch_id: integer('batch_id').notNull(),
+		registration_number: text('registration_number').notNull().unique(),
+		full_name: text('full_name').notNull(),
+		nisn: text('nisn'),
+		nik: text('nik'),
+		gender: text('gender').notNull(),
+		birth_place: text('birth_place'),
+		birth_date: text('birth_date').notNull(),
+		religion: text('religion').default('Islam'),
+		address: text('address').notNull(),
+		phone: text('phone'),
+		email: text('email'),
+		previous_school: text('previous_school').notNull(),
+		graduation_year: integer('graduation_year'),
+		track: text('track').notNull().default('reguler'),
+		major_choice: text('major_choice').notNull(),
+		parent_name: text('parent_name').notNull(),
+		parent_phone: text('parent_phone').notNull(),
+		parent_job: text('parent_job'),
+		status: text('status').notNull().default('submitted'),
+		selection_score: integer('selection_score'),
+		notes: text('notes'),
+		converted_student_id: integer('converted_student_id'),
+		created_at: integer('created_at').notNull().default(sql`(unixepoch('subsec') * 1000)`),
+		updated_at: integer('updated_at').notNull().default(sql`(unixepoch('subsec') * 1000)`),
+		deleted_at: integer('deleted_at')
+	},
+	(t): SQLiteTableExtraConfigValue[] => [
+		index('idx_ppdb_registrations_school_batch').on(t.school_id, t.batch_id),
+		index('idx_ppdb_registrations_school_status').on(t.school_id, t.status),
+		index('idx_ppdb_registrations_nisn').on(t.nisn),
+		index('idx_ppdb_registrations_deleted_at').on(t.deleted_at),
+		check('ppdb_registrations_gender_check', sql`gender IN ('L', 'P')`),
+		check('ppdb_registrations_status_check', sql`status IN ('submitted', 'verified', 'accepted', 'rejected', 'enrolled')`),
+		foreignKey({
+			name: 'ppdb_registrations_school_id_schools_id_fk',
+			columns: [t.school_id],
+			foreignColumns: [schools.id]
+		}).onDelete('cascade'),
+		foreignKey({
+			name: 'ppdb_registrations_batch_id_ppdb_batches_id_fk',
+			columns: [t.batch_id],
+			foreignColumns: [ppdbBatches.id]
+		}).onDelete('cascade'),
+		foreignKey({
+			name: 'ppdb_registrations_converted_student_id_students_id_fk',
+			columns: [t.converted_student_id],
+			foreignColumns: [students.id]
+		}).onDelete('set null')
+	]
+);
+
+export const ppdbTracks = sqliteTable(
+	'ppdb_tracks',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		school_id: integer('school_id').notNull(),
+		code: text('code').notNull(),
+		name: text('name').notNull(),
+		description: text('description'),
+		is_active: integer('is_active').notNull().default(1),
+		created_at: integer('created_at').notNull().default(sql`(unixepoch('subsec') * 1000)`),
+		updated_at: integer('updated_at').notNull().default(sql`(unixepoch('subsec') * 1000)`),
+		deleted_at: integer('deleted_at')
+	},
+	(t): SQLiteTableExtraConfigValue[] => [
+		index('idx_ppdb_tracks_school_active').on(t.school_id, t.is_active),
+		index('idx_ppdb_tracks_deleted_at').on(t.deleted_at),
+		unique('ppdb_tracks_school_id_code_unique').on(t.school_id, t.code),
+		check('ppdb_tracks_is_active_check', sql`is_active IN (0, 1)`),
+		foreignKey({
+			name: 'ppdb_tracks_school_id_schools_id_fk',
+			columns: [t.school_id],
+			foreignColumns: [schools.id]
+		}).onDelete('cascade')
+	]
+);
+
 // Schema gabungan untuk migrasi & query
 export const schema = {
 	schools,
@@ -661,10 +922,16 @@ export const schema = {
 	studentViolations,
 	studentPointSummaries,
 	sanctions,
+	studentSanctions,
 	timeSlots,
 	schedules,
 	auditLogs,
-	notifications
+	notifications,
+	sppSettings,
+	sppPayments,
+		ppdbBatches,
+	ppdbRegistrations,
+	ppdbTracks
 };
 
 export type School = typeof schools.$inferSelect;
@@ -695,6 +962,8 @@ export type StudentPointSummary = typeof studentPointSummaries.$inferSelect;
 export type NewStudentPointSummary = typeof studentPointSummaries.$inferInsert;
 export type Sanction = typeof sanctions.$inferSelect;
 export type NewSanction = typeof sanctions.$inferInsert;
+export type StudentSanction = typeof studentSanctions.$inferSelect;
+export type NewStudentSanction = typeof studentSanctions.$inferInsert;
 export type TimeSlot = typeof timeSlots.$inferSelect;
 export type NewTimeSlot = typeof timeSlots.$inferInsert;
 export type Schedule = typeof schedules.$inferSelect;
@@ -703,3 +972,13 @@ export type AuditLog = typeof auditLogs.$inferSelect;
 export type NewAuditLog = typeof auditLogs.$inferInsert;
 export type Notification = typeof notifications.$inferSelect;
 export type NewNotification = typeof notifications.$inferInsert;
+export type SppSetting = typeof sppSettings.$inferSelect;
+export type NewSppSetting = typeof sppSettings.$inferInsert;
+export type SppPayment = typeof sppPayments.$inferSelect;
+export type NewSppPayment = typeof sppPayments.$inferInsert;
+export type PpdbBatch = typeof ppdbBatches.$inferSelect;
+export type NewPpdbBatch = typeof ppdbBatches.$inferInsert;
+export type PpdbRegistration = typeof ppdbRegistrations.$inferSelect;
+export type NewPpdbRegistration = typeof ppdbRegistrations.$inferInsert;
+export type PpdbTrack = typeof ppdbTracks.$inferSelect;
+export type NewPpdbTrack = typeof ppdbTracks.$inferInsert;

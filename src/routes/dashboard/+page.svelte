@@ -2,14 +2,19 @@
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
-	const { user, stats } = data;
+	const { user, stats, recentPayments } = data;
 
 	const roleLabels: Record<string, string> = {
 		superadmin: 'Superadmin',
 		admin_sekolah: 'Admin Sekolah',
+		admin_keuangan: 'Admin Keuangan',
 		guru: 'Guru',
 		siswa: 'Siswa'
 	};
+
+	function formatRupiah(num: number): string {
+		return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
+	}
 </script>
 
 <svelte:head>
@@ -77,8 +82,13 @@
 				<p class="text-3xl font-bold text-gray-900 mt-1">{stats?.totalSiswa ?? 0}</p>
 				<p class="text-xs text-gray-400 mt-1">Siswa terdaftar</p>
 			</a>
+			<a href="/dashboard/keuangan" class="block bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
+				<p class="text-sm font-medium text-gray-500">Kas SPP Masuk</p>
+				<p class="text-2xl font-bold text-emerald-600 mt-1">{formatRupiah(stats?.totalKasSPP ?? 0)}</p>
+				<p class="text-xs text-gray-400 mt-1">Total pembayaran SPP diterima</p>
+			</a>
 		</div>
-		<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+		<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
 			<a href="/dashboard/guru" class="block bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md hover:border-blue-300 transition-all group">
 				<div class="flex items-center gap-3">
 					<div class="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center group-hover:bg-blue-100 transition-colors">
@@ -86,7 +96,7 @@
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
 						</svg>
 					</div>
-					<span class="text-sm font-medium text-gray-700 group-hover:text-blue-700 transition-colors">Tambah Guru Baru</span>
+					<span class="text-sm font-medium text-gray-700 group-hover:text-blue-700 transition-colors">Kelola Guru</span>
 				</div>
 			</a>
 			<a href="/dashboard/siswa" class="block bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md hover:border-blue-300 transition-all group">
@@ -96,9 +106,120 @@
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
 						</svg>
 					</div>
-					<span class="text-sm font-medium text-gray-700 group-hover:text-blue-700 transition-colors">Tambah Siswa Baru</span>
+					<span class="text-sm font-medium text-gray-700 group-hover:text-blue-700 transition-colors">Kelola Siswa</span>
 				</div>
 			</a>
+			<a href="/dashboard/keuangan" class="block bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md hover:border-blue-300 transition-all group">
+				<div class="flex items-center gap-3">
+					<div class="w-9 h-9 bg-emerald-50 rounded-lg flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
+						<svg class="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+						</svg>
+					</div>
+					<span class="text-sm font-medium text-gray-700 group-hover:text-emerald-700 transition-colors">Pantau Keuangan SPP</span>
+				</div>
+			</a>
+		</div>
+
+	<!-- ADMIN KEUANGAN -->
+	{:else if user.role === 'admin_keuangan'}
+		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+			<div class="bg-white rounded-xl border border-gray-200 p-5">
+				<p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Kas SPP Masuk</p>
+				<p class="text-2xl font-bold text-emerald-600 mt-2">{formatRupiah(stats?.totalKasMasuk ?? 0)}</p>
+				<p class="text-xs text-gray-400 mt-1">Total penerimaan lunas</p>
+			</div>
+			<div class="bg-white rounded-xl border border-gray-200 p-5">
+				<p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Sisa Tunggakan</p>
+				<p class="text-2xl font-bold text-amber-600 mt-2">{formatRupiah(stats?.totalTunggakan ?? 0)}</p>
+				<p class="text-xs text-gray-400 mt-1">Tagihan belum bayar</p>
+			</div>
+			<div class="bg-white rounded-xl border border-gray-200 p-5">
+				<p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Total Tagihan</p>
+				<p class="text-2xl font-bold text-gray-900 mt-2">{formatRupiah(stats?.totalTagihan ?? 0)}</p>
+				<p class="text-xs text-gray-400 mt-1">Kewajiban seluruh siswa</p>
+			</div>
+			<div class="bg-white rounded-xl border border-gray-200 p-5">
+				<p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Siswa Terdaftar</p>
+				<p class="text-2xl font-bold text-blue-600 mt-2">{stats?.totalSiswa ?? 0}</p>
+				<p class="text-xs text-gray-400 mt-1">Tahun ajaran {stats?.activeYearName ?? '-'}</p>
+			</div>
+		</div>
+
+		<!-- Menu Cepat Admin Keuangan -->
+		<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+			<a href="/dashboard/keuangan" class="block bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md hover:border-blue-300 transition-all group">
+				<div class="flex items-center gap-3">
+					<div class="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
+						<svg class="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+					</div>
+					<div>
+						<span class="text-sm font-semibold text-gray-800 group-hover:text-emerald-700 transition-colors block">Transaksi Pembayaran</span>
+						<span class="text-xs text-gray-500">Input bayar & cetak kuitansi SPP</span>
+					</div>
+				</div>
+			</a>
+			<a href="/dashboard/keuangan/tarif" class="block bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md hover:border-blue-300 transition-all group">
+				<div class="flex items-center gap-3">
+					<div class="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+						<svg class="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+						</svg>
+					</div>
+					<div>
+						<span class="text-sm font-semibold text-gray-800 group-hover:text-blue-700 transition-colors block">Tarif & Tagihan</span>
+						<span class="text-xs text-gray-500">Setting tarif & buat tagihan massal</span>
+					</div>
+				</div>
+			</a>
+			<a href="/dashboard/keuangan/laporan" class="block bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md hover:border-blue-300 transition-all group">
+				<div class="flex items-center gap-3">
+					<div class="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center group-hover:bg-purple-100 transition-colors">
+						<svg class="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+						</svg>
+					</div>
+					<div>
+						<span class="text-sm font-semibold text-gray-800 group-hover:text-purple-700 transition-colors block">Laporan & Rekap SPP</span>
+						<span class="text-xs text-gray-500">Rekap per kelas & daftar tunggakan</span>
+					</div>
+				</div>
+			</a>
+		</div>
+
+		<!-- Transaksi Terkini -->
+		<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+			<div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+				<h2 class="text-base font-semibold text-gray-900">Pembayaran SPP Terakhir</h2>
+				<a href="/dashboard/keuangan" class="text-xs font-medium text-blue-600 hover:text-blue-800">Lihat Semua →</a>
+			</div>
+			{#if recentPayments && recentPayments.length > 0}
+				<div class="divide-y divide-gray-100">
+					{#each recentPayments as p}
+						<div class="px-5 py-3 flex items-center justify-between text-sm hover:bg-gray-50">
+							<div>
+								<p class="font-medium text-gray-900">{p.studentName}</p>
+								<p class="text-xs text-gray-500">
+									Kelas {p.className ?? '-'} • Bulan {p.monthName} {p.year}
+									{#if p.invoiceNumber}
+										• <span class="font-mono text-gray-600">{p.invoiceNumber}</span>
+									{/if}
+								</p>
+							</div>
+							<div class="text-right">
+								<p class="font-semibold text-emerald-600">{formatRupiah(p.amountPaid)}</p>
+								<p class="text-xs text-gray-400">{p.paymentDate ?? '-'}</p>
+							</div>
+						</div>
+					{/each}
+				</div>
+			{:else}
+				<div class="p-6 text-center text-sm text-gray-500">
+					Belum ada riwayat pembayaran SPP.
+				</div>
+			{/if}
 		</div>
 
 	<!-- GURU -->
@@ -124,11 +245,46 @@
 					<span class="text-sm font-medium text-gray-700 group-hover:text-blue-700 transition-colors">Lihat Jadwal Mengajar</span>
 				</div>
 			</a>
+			<a href="/dashboard/pelanggaran" class="block bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md hover:border-blue-300 transition-all group">
+				<div class="flex items-center gap-3">
+					<div class="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+						<svg class="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+						</svg>
+					</div>
+					<span class="text-sm font-medium text-gray-700 group-hover:text-blue-700 transition-colors">Catat Pelanggaran Siswa</span>
+				</div>
+			</a>
 		</div>
 
 	<!-- SISWA -->
 	{:else if user.role === 'siswa'}
-		<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+		<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+			<a href="/dashboard/keuangan" class="block bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md hover:border-blue-300 transition-all group">
+				<p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Status Pembayaran SPP</p>
+				<div class="flex items-center gap-4 mt-2">
+					<div>
+						<p class="text-2xl font-bold text-emerald-600">{stats?.sppLunas ?? 0} Bulan</p>
+						<p class="text-xs text-gray-400">Sudah lunas</p>
+					</div>
+					<div class="border-l border-gray-200 pl-4">
+						<p class="text-2xl font-bold text-amber-600">{stats?.sppPending ?? 0} Bulan</p>
+						<p class="text-xs text-gray-400">Belum dibayar</p>
+					</div>
+				</div>
+			</a>
+		</div>
+		<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+			<a href="/dashboard/keuangan" class="block bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md hover:border-blue-300 transition-all group">
+				<div class="flex items-center gap-3">
+					<div class="w-9 h-9 bg-emerald-50 rounded-lg flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
+						<svg class="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+						</svg>
+					</div>
+					<span class="text-sm font-medium text-gray-700 group-hover:text-emerald-700 transition-colors">Lihat Kartu SPP Saya</span>
+				</div>
+			</a>
 			<a href="/dashboard/jadwal" class="block bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md hover:border-blue-300 transition-all group">
 				<div class="flex items-center gap-3">
 					<div class="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center group-hover:bg-blue-100 transition-colors">

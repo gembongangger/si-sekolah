@@ -7,8 +7,7 @@
 
 	let { data }: { data: PageData } = $props();
 
-	const _formData = $derived(() => data.form);
-	const { form, errors, message, enhance, submitting, reset } = superForm(_formData, {
+	const { form, errors, message, enhance, submitting, reset } = superForm(data.form, {
 		validators: zodClient(classSubjectSchema),
 		onUpdated({ form: f }) {
 			if (String(f.message).includes('berhasil')) {
@@ -88,7 +87,7 @@
 									class="text-xs text-blue-600 hover:text-blue-800 font-medium"
 								>Edit</button>
 								<button
-									onclick={() => (deleteTarget = { id: cs.id, name: cs.class_name })}
+									onclick={() => (deleteTarget = { id: cs.id, name: cs.class_name ?? '—' })}
 									class="text-xs text-red-500 hover:text-red-700 font-medium"
 								>Hapus</button>
 							</td>

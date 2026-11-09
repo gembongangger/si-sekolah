@@ -24,6 +24,18 @@ export function requireSchoolAdmin(user: SessionUser | null): asserts user is Se
 }
 
 /**
+ * Pastikan user yang terautentikasi memiliki role admin_keuangan atau admin_sekolah
+ * dan mengakses tenant (school_id) yang sama.
+ */
+export function requireFinanceAdmin(user: SessionUser | null): asserts user is SessionUser & {
+	schoolId: number;
+} {
+	if ((user?.role !== 'admin_keuangan' && user?.role !== 'admin_sekolah') || user.schoolId === null) {
+		throw error(403, 'Akses ditolak: admin keuangan atau admin sekolah diperlukan');
+	}
+}
+
+/**
  * Pastikan user yang terautentikasi memiliki role guru.
  */
 export function requireGuru(user: SessionUser | null): asserts user is SessionUser {

@@ -4,7 +4,7 @@
 
 | # | Fitur | Route | Status | Detail |
 |---|-------|-------|--------|--------|
-| 1 | Database schema (19 tabel) | — | ✅ | Drizzle + migrasi lokal (3 migration files) |
+| 1 | Database schema (23 tabel) | — | ✅ | Drizzle + migrasi lokal (5 migration files) |
 | 2 | Auth (login/logout/session) | `/login`, `/logout` | ✅ | Lucia Auth + bcryptjs |
 | 3 | Role-based guards | — | ✅ | superadmin, admin_sekolah, guru, siswa |
 | 4 | Dashboard beranda | `/dashboard` | ✅ | Statistik per role |
@@ -21,8 +21,9 @@
 | 15 | **Jam Pelajaran** | `/dashboard/jam-pelajaran` | ✅ | CRUD admin_sekolah (baru) |
 | 16 | **Jadwal Pelajaran** | `/dashboard/jadwal` | ✅ | CRUD + cek konflik waktu (baru) |
 | 17 | **Sanksi Poin** | `/dashboard/sanksi` | ✅ | CRUD admin_sekolah (baru) |
-| 18 | Endpoint seed | `/api/seed` | ✅ | Dev only |
-| 19 | Build production | `bun run build` | ✅ | Berhasil tanpa error |
+| 18 | **Jalur Pendaftaran PPDB (configurable)** | `/dashboard/ppdb` | ✅ | CRUD admin_sekolah, validasi dinamis di formulir publik |
+| 19 | Endpoint seed | `/api/seed` | ✅ | Dev only |
+| 20 | Build production | `bun run build` | ✅ | Berhasil tanpa error |
 
 ---
 
@@ -30,9 +31,18 @@
 
 1. **vite.config.ts**: Ditambahkan alias `$lib` → `src/lib` (SvelteKit v3 hapus `$lib`)
 2. **schema.ts**: Ditambahkan `deleted_at` dan `updated_at` ke tabel academic_years, subjects, classes, time_slots, sanctions, class_subjects, schedules
-3. **Migration**: 3 file migration (0000, 0001, 0002, 0003) applied ke `drizzle/local.db`
+3. **Migration**: 5 file migration (0000–0004) applied ke `drizzle/local.db`
 4. **Validation**: Semua schema dipindahkan dari `src/lib/server/validation/` ke `src/lib/validation/` agar bisa diimpor di sisi klien (build)
 5. **Sidebar**: Ditambahkan nav item untuk Tahun Ajaran, Mata Pelajaran, Kelas, Kelas–Mapel–Guru, Jam Pelajaran, Jadwal, Sanksi Poin
+6. **PPDB Jalur Pendaftaran (configurable)**:
+   - Tabel baru `ppdb_tracks` (school_id, code, name, description, is_active)
+   - Hapus CHECK constraint hardcoded di `ppdb_registrations.track` → validasi dinamis per sekolah
+   - CRUD jalur di `/dashboard/ppdb` (create, edit, toggle aktif, hapus)
+   - Auto-seed default 4 jalur (reguler, prestasi, zonasi, afirmasi) per sekolah bila kosong
+   - Formulir publik `/ppdb/daftar` menampilkan jalur sesuai sekolah terpilih (fallback ke default jika belum dikonfigurasi)
+   - Wizard 5 langkah mobile-friendly di formulir pendaftaran
+
+---
 
 ---
 

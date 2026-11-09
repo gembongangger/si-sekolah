@@ -7,8 +7,7 @@
 
 	let { data }: { data: PageData } = $props();
 
-	const _formData = $derived(() => data.form);
-	const { form, errors, message, enhance, submitting, reset } = superForm(_formData, {
+	const { form, errors, message, enhance, submitting, reset } = superForm(data.form, {
 		validators: zodClient(scheduleSchema),
 		onUpdated({ form: f }) {
 			if (String(f.message).includes('berhasil')) {
@@ -21,6 +20,23 @@
 	let showAddModal = $state(false);
 	let editSchedule: (typeof data.schedules)[0] | null = $state(null);
 	let deleteTarget: { id: number; name: string } | null = $state(null);
+	let activeDay = $state<number | null>(null);
+
+	const availableDays = $derived(
+		[...new Set(data.schedules.map((s) => s.time_slot_day).filter((d): d is number => d != null))].sort((a, b) => a - b)
+	);
+	const filteredSchedules = $derived(
+		activeDay === null ? data.schedules : data.schedules.filter((s) => s.time_slot_day === activeDay)
+	);
+
+	const canManage = data.viewerRole === 'admin_sekolah';
+	const headline = $derived(
+		canManage
+			? 'Atur jadwal mengajar per kelas, mata pelajaran, dan guru'
+			: data.viewerRole === 'guru'
+				? 'Jadwal mengajar yang Anda ampu'
+				: 'Jadwal pelajaran kelas Anda'
+	);
 
 	function inputCls(err?: unknown) {
 		const hasErr = Array.isArray(err)
@@ -46,21 +62,48 @@
 	<div class="flex items-center justify-between mb-6">
 		<div>
 			<h1 class="text-xl font-bold text-gray-900">Jadwal Pelajaran</h1>
-			<p class="text-sm text-gray-500 mt-0.5">
-				Atur jadwal mengajar per kelas, mata pelajaran, dan guru
-			</p>
-		</div>
-		<button
-			onclick={() => (showAddModal = true)}
-			class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
-		>
-			+ Tambah Jadwal
-		</button>
+		<p class="text-sm text-gray-500 mt-0.5">
+			{headline}
+		</p>
 	</div>
+		{#if canManage}
+			<button
+				onclick={() => (showAddModal = true)}
+				class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+			>
+				+ Tambah Jadwal
+			</button>
+		{/if}
+	</div>
+
+	{#if availableDays.length > 1}
+		<div class="mb-4 flex items-center gap-2 overflow-x-auto pb-1">
+			<button
+				onclick={() => (activeDay = null)}
+				class="px-3.5 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors {activeDay === null
+					? 'bg-blue-600 text-white'
+					: 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}"
+			>
+				Semua Hari
+			</button>
+			{#each availableDays as day (day)}
+				<button
+					onclick={() => (activeDay = day)}
+					class="px-3.5 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors {activeDay === day
+						? 'bg-blue-600 text-white'
+						: 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}"
+				>
+					{data.dayLabels[day] ?? `Hari ${day}`}
+				</button>
+			{/each}
+		</div>
+	{/if}
 
 	<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 		{#if data.schedules.length === 0}
 			<div class="py-16 text-center text-gray-400 text-sm">Belum ada jadwal pelajaran.</div>
+		{:else if filteredSchedules.length === 0}
+			<div class="py-16 text-center text-gray-400 text-sm">Tidak ada jadwal pada hari {data.dayLabels[activeDay ?? -1] ?? ''}.</div>
 		{:else}
 			<div class="overflow-x-auto">
 				<table class="w-full text-sm">
@@ -76,26 +119,28 @@
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-gray-100">
-						{#each data.schedules as s (s.id)}
+						{#each filteredSchedules as s (s.id)}
 							<tr class="hover:bg-gray-50 transition-colors">
 								<td class="px-5 py-3.5 text-gray-600 text-sm">{s.academic_year_name ?? '—'} ({s.academic_year_semester ?? '—'})</td>
 								<td class="px-5 py-3.5 font-medium text-gray-900">{s.class_name ?? '—'} ({s.class_level ?? '—'})</td>
 								<td class="px-5 py-3.5 text-gray-600">[{s.subject_code ?? '—'}] {s.subject_name ?? '—'}</td>
 								<td class="px-5 py-3.5 text-gray-600">{s.teacher_name ?? '—'}</td>
 								<td class="px-5 py-3.5 text-gray-600 text-sm">
-									{data.dayLabels[s.time_slot_day] ?? s.time_slot_day} Slot {s.time_slot_slot} ({s.time_slot_start ?? '—'}–{s.time_slot_end ?? '—'})
+									{data.dayLabels[s.time_slot_day ?? -1] ?? s.time_slot_day ?? '—'} Slot {s.time_slot_slot} ({s.time_slot_start ?? '—'}–{s.time_slot_end ?? '—'})
 								</td>
-								<td class="px-5 py-3.5 text-gray-600">{s.room ?? '—'}</td>
-								<td class="px-5 py-3.5 text-right space-x-3">
-									<button
-										onclick={() => (editSchedule = s)}
-										class="text-xs text-blue-600 hover:text-blue-800 font-medium"
-									>Edit</button>
-									<button
-										onclick={() => (deleteTarget = { id: s.id, name: s.class_name ?? 'Kelas' })}
-										class="text-xs text-red-500 hover:text-red-700 font-medium"
-									>Hapus</button>
-								</td>
+							<td class="px-5 py-3.5 text-gray-600">{s.room ?? '—'}</td>
+								{#if canManage}
+									<td class="px-5 py-3.5 text-right space-x-3">
+										<button
+											onclick={() => (editSchedule = s)}
+											class="text-xs text-blue-600 hover:text-blue-800 font-medium"
+										>Edit</button>
+										<button
+											onclick={() => (deleteTarget = { id: s.id, name: s.class_name ?? 'Kelas' })}
+											class="text-xs text-red-500 hover:text-red-700 font-medium"
+										>Hapus</button>
+									</td>
+								{/if}
 							</tr>
 						{/each}
 					</tbody>

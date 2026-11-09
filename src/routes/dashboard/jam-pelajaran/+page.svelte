@@ -7,8 +7,7 @@
 
 	let { data }: { data: PageData } = $props();
 
-	const _formData = $derived(() => data.form);
-	const { form, errors, message, enhance, submitting, reset } = superForm(_formData, {
+	const { form, errors, message, enhance, submitting, reset } = superForm(data.form, {
 		validators: zodClient(timeSlotSchema),
 		onUpdated({ form: f }) {
 			if (String(f.message).includes('berhasil')) {

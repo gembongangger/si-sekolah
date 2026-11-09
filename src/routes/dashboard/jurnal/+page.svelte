@@ -7,8 +7,7 @@
 
 	let { data }: { data: PageData } = $props();
 
-	const _formData = $derived(() => data.form);
-	const { form, errors, message, enhance, submitting, reset } = superForm(_formData, {
+	const { form, errors, message, enhance, submitting, reset } = superForm(data.form, {
 		validators: zodClient(jurnalSchema),
 		onUpdated({ form: f }) {
 			if (String(f.message).includes('berhasil')) {
@@ -38,11 +37,14 @@
 
 	const today = new Date().toISOString().slice(0, 10);
 
-	// Filter mapel berdasarkan kelas yang dipilih
+	// Filter mapel berdasarkan kelas yang dipilih, dedupe per subject_id
 	const filteredSubjects = $derived(
-		$form.class_id
-			? data.kelasPelajaran.filter(k => k.class_id === Number($form.class_id))
-			: data.kelasPelajaran
+		[...new Map(
+			($form.class_id
+				? data.kelasPelajaran.filter(k => k.class_id === Number($form.class_id))
+				: data.kelasPelajaran
+			).map(k => [k.subject_id, k])
+		).values()]
 	);
 
 	// Deduplicated classes

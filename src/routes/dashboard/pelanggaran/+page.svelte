@@ -21,6 +21,7 @@
 			if (String(f.message).includes('berhasil')) {
 				showReportModal = false;
 				vReset();
+				siswaQuery = '';
 			}
 		}
 	});
@@ -47,6 +48,23 @@
 	let showVtypeModal = $state(false);
 	let activeTab: 'violations' | 'types' | 'summary' = $state('violations');
 	let deleteTarget: { id: number } | null = $state(null);
+
+	// Combobox siswa (pencarian nama/NIS)
+	let siswaQuery = $state('');
+	let siswaOpen = $state(false);
+	const siswaResults = $derived.by(() => {
+		const q = siswaQuery.trim().toLowerCase();
+		const list = q
+			? data.siswas.filter(s => (s.name ?? '').toLowerCase().includes(q) || String(s.nis ?? '').includes(q))
+			: data.siswas;
+		return list.slice(0, 8);
+	});
+
+	function pickSiswa(s: (typeof data.siswas)[0]) {
+		$vForm.student_id = s.id;
+		siswaQuery = `${s.name}${s.nis ? ` (${s.nis})` : ''}`;
+		siswaOpen = false;
+	}
 
 	function inputCls(err?: unknown) {
 		const hasErr = Array.isArray(err) ? err.length > 0 : (err != null && typeof err === 'object' && '_errors' in err ? !!(err as any)._errors?.length : !!err);
@@ -303,14 +321,40 @@
 				<div class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{$vMessage}</div>
 			{/if}
 			<form method="POST" action="?/report" use:vEnhance class="space-y-4">
-				<div>
+				<div class="relative">
 					<label class="block text-sm font-medium text-gray-700 mb-1">Siswa *</label>
-					<select name="student_id" bind:value={$vForm.student_id} class={inputCls($vErrors.student_id)}>
-						<option value="">— Pilih Siswa —</option>
-						{#each data.siswas as s (s.id)}
-							<option value={s.id}>{s.name}{s.nis ? ` (${s.nis})` : ''}</option>
-						{/each}
-					</select>
+					<input
+						type="text"
+						autocomplete="off"
+						placeholder="Ketik nama atau NIS siswa…"
+						bind:value={siswaQuery}
+						onfocus={() => (siswaOpen = true)}
+						oninput={() => {
+							siswaOpen = true;
+							$vForm.student_id = 0;
+						}}
+						onblur={() => setTimeout(() => (siswaOpen = false), 150)}
+						class={inputCls($vErrors.student_id)}
+					/>
+					{#if siswaOpen}
+						<div class="absolute z-10 mt-1 w-full max-h-56 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg">
+							{#if siswaResults.length === 0}
+								<p class="px-3 py-2.5 text-sm text-gray-400">Siswa tidak ditemukan.</p>
+							{:else}
+								{#each siswaResults as s (s.id)}
+									<button
+										type="button"
+										onclick={() => pickSiswa(s)}
+										class="w-full text-left px-3 py-2.5 hover:bg-blue-50 transition-colors"
+									>
+										<span class="text-sm font-medium text-gray-900">{s.name}</span>
+										{#if s.nis}<span class="ml-2 text-xs text-gray-400 font-mono">NIS {s.nis}</span>{/if}
+									</button>
+								{/each}
+							{/if}
+						</div>
+					{/if}
+					<input type="hidden" name="student_id" value={$vForm.student_id} />
 					{#if $vErrors.student_id}<p class="mt-1 text-xs text-red-600">{$vErrors.student_id[0]}</p>{/if}
 				</div>
 

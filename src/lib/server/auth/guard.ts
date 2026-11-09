@@ -1,7 +1,7 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { SessionUser } from '$lib/server/auth/session';
 
-export type UserRole = 'superadmin' | 'admin_sekolah' | 'guru' | 'siswa';
+export type UserRole = 'superadmin' | 'admin_sekolah' | 'admin_keuangan' | 'guru' | 'siswa';
 
 /**
  * Guard role: lempar error 403 jika user tidak memiliki role yang diizinkan.
@@ -35,6 +35,32 @@ export function requireAdminSekolah(
 	const u = requireRole(user, 'admin_sekolah');
 	if (u.schoolId === null) {
 		throw error(403, 'Admin sekolah harus memiliki sekolah terkait');
+	}
+	return u as SessionUser & { schoolId: number };
+}
+
+/**
+ * Guard admin keuangan: hanya admin_keuangan yang boleh akses.
+ */
+export function requireAdminKeuangan(
+	user: SessionUser | null
+): SessionUser & { schoolId: number } {
+	const u = requireRole(user, 'admin_keuangan');
+	if (u.schoolId === null) {
+		throw error(403, 'Admin keuangan harus memiliki sekolah terkait');
+	}
+	return u as SessionUser & { schoolId: number };
+}
+
+/**
+ * Guard admin keuangan atau admin sekolah (keduanya berwenang mengelola/melihat keuangan).
+ */
+export function requireFinanceOrAdmin(
+	user: SessionUser | null
+): SessionUser & { schoolId: number } {
+	const u = requireRole(user, 'admin_keuangan', 'admin_sekolah');
+	if (u.schoolId === null) {
+		throw error(403, 'User keuangan harus memiliki sekolah terkait');
 	}
 	return u as SessionUser & { schoolId: number };
 }

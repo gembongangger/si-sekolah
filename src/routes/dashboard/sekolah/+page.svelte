@@ -8,8 +8,7 @@
 	let { data }: { data: PageData } = $props();
 
 	// Form tambah sekolah baru
-	const _formData = $derived(() => data.form);
-	const { form, errors, message, enhance, submitting, reset } = superForm(_formData, {
+	const { form, errors, message, enhance, submitting, reset } = superForm(data.form, {
 		validators: zodClient(schoolSchema),
 		onUpdated({ form: f }) {
 			if (f.message && !String(f.message).toLowerCase().includes('tidak valid') && !String(f.message).toLowerCase().includes('sudah')) {

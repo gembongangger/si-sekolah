@@ -9,7 +9,8 @@
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"seed:dummy": "bun scripts/seed-dummy.ts"
 	},
 	"devDependencies": {
 		"@libsql/client": "^0.18.0",
@@ -38,6 +39,7 @@
 		"lucia": "^3.2.2",
 		"sveltekit-superforms": "^3.1.0",
 		"tailwindcss": "^4.3.3",
+		"xlsx": "^0.18.5",
 		"zod": "^4.6.7"
 	}
 }

@@ -16,8 +16,10 @@
 			case 'admin_sekolah':
 				return [
 					{ href: '/dashboard', label: 'Beranda', icon: 'home' },
+					{ href: '/dashboard/keuangan', label: 'Keuangan SPP', icon: 'credit-card' },
 					{ href: '/dashboard/guru', label: 'Kelola Guru', icon: 'user-tie' },
 					{ href: '/dashboard/siswa', label: 'Kelola Siswa', icon: 'user-graduate' },
+					{ href: '/dashboard/ppdb', label: 'PPDB', icon: 'clipboard' },
 					{ href: '/dashboard/tahun-ajaran', label: 'Tahun Ajaran', icon: 'calendar' },
 					{ href: '/dashboard/mata-pelajaran', label: 'Mata Pelajaran', icon: 'book-open' },
 					{ href: '/dashboard/kelas', label: 'Kelas', icon: 'book' },
@@ -27,16 +29,26 @@
 					{ href: '/dashboard/sanksi', label: 'Sanksi Poin', icon: 'alert-circle' },
 					{ href: '/dashboard/pelanggaran', label: 'Pelanggaran', icon: 'exclamation' }
 				];
+			case 'admin_keuangan':
+				return [
+					{ href: '/dashboard', label: 'Beranda', icon: 'home' },
+					{ href: '/dashboard/keuangan', label: 'Pembayaran SPP', icon: 'credit-card' },
+					{ href: '/dashboard/keuangan/tarif', label: 'Tarif & Tagihan', icon: 'settings' },
+					{ href: '/dashboard/keuangan/laporan', label: 'Laporan Keuangan', icon: 'file-text' },
+					{ href: '/dashboard/siswa', label: 'Data Siswa', icon: 'user-graduate' }
+				];
 			case 'guru':
 				return [
 					{ href: '/dashboard', label: 'Beranda', icon: 'home' },
 					{ href: '/dashboard/jurnal', label: 'Jurnal Mengajar', icon: 'book-open' },
 					{ href: '/dashboard/jadwal', label: 'Jadwal Saya', icon: 'calendar' },
-					{ href: '/dashboard/siswa', label: 'Data Siswa', icon: 'users' }
+					{ href: '/dashboard/siswa', label: 'Data Siswa', icon: 'users' },
+					{ href: '/dashboard/pelanggaran', label: 'Catat Pelanggaran', icon: 'exclamation' }
 				];
 			case 'siswa':
 				return [
 					{ href: '/dashboard', label: 'Beranda', icon: 'home' },
+					{ href: '/dashboard/keuangan', label: 'SPP Saya', icon: 'credit-card' },
 					{ href: '/dashboard/jadwal', label: 'Jadwal Saya', icon: 'calendar' },
 					{ href: '/dashboard/pelanggaran', label: 'Poin Saya', icon: 'exclamation' }
 				];
@@ -48,6 +60,7 @@
 	const roleLabels: Record<string, string> = {
 		superadmin: 'Superadmin',
 		admin_sekolah: 'Admin Sekolah',
+		admin_keuangan: 'Admin Keuangan',
 		guru: 'Guru',
 		siswa: 'Siswa'
 	};
