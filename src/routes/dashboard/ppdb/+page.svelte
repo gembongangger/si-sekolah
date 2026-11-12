@@ -37,6 +37,21 @@
 
 	// ── Edit batch (periode) states ──────────────────────────────
 	let showBatchEditModal = $state(false);
+	let copiedPublic = $state(false);
+
+	function publicRegUrl(): string {
+		return data.schoolSlug ? `${location.origin}/ppdb/${data.schoolSlug}` : '';
+	}
+
+	async function copyPublicUrl() {
+		try {
+			await navigator.clipboard.writeText(publicRegUrl());
+			copiedPublic = true;
+			setTimeout(() => (copiedPublic = false), 1500);
+		} catch {
+			/* clipboard tidak tersedia */
+		}
+	}
 	let editBatchId = $state<number | string>('');
 	let editBatchName = $state('');
 	let editBatchYearId = $state<number | string>('');
@@ -451,6 +466,31 @@
 			<div class="p-8 text-center text-sm text-muted-foreground">
 				Belum ada jalur pendaftaran. Klik "Tambah Jalur" untuk memulai.
 			</div>
+		{/if}
+	</div>
+
+	<!-- Link Pendaftaran Publik per Sekolah -->
+	<div class="bg-card rounded-xl border border-border p-4 sm:p-5">
+		<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+			<div>
+				<h2 class="font-bold text-foreground flex items-center gap-2">🔗 Link Pendaftaran Publik</h2>
+				<p class="text-xs text-muted-foreground mt-0.5">Bagikan URL ini ke calon siswa. Halaman hanya menampilkan sekolah Anda.</p>
+			</div>
+			{#if data.schoolSlug}
+				<button
+					onclick={copyPublicUrl}
+					class="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold rounded-lg shrink-0"
+				>
+					{copiedPublic ? '✓ Tersalin' : 'Salin Link'}
+				</button>
+			{/if}
+		</div>
+		{#if data.schoolSlug}
+			<code class="mt-3 block px-3 py-2 bg-muted border border-border rounded-lg text-xs text-foreground break-all">
+				/ppdb/{data.schoolSlug}
+			</code>
+		{:else}
+			<p class="mt-3 text-xs text-destructive">Slug sekolah belum diatur. Atur di menu Sekolah agar link publik aktif.</p>
 		{/if}
 	</div>
 

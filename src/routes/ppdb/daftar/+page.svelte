@@ -257,7 +257,7 @@
 </script>
 
 <svelte:head>
-	<title>Formulir Pendaftaran Online — PPDB Online</title>
+	<title>{data.lockedSchool ? `Pendaftaran ${data.lockedSchool.name}` : 'Formulir Pendaftaran Online'} — PPDB Online</title>
 </svelte:head>
 
 <div class="min-h-screen bg-background text-foreground pb-16">
@@ -276,13 +276,27 @@
 	<!-- Header Content -->
 	<div class="max-w-4xl mx-auto px-3 sm:px-4 pt-5 sm:pt-8 pb-3">
 		<div class="bg-gradient-to-r from-blue-700 to-indigo-800 text-white rounded-2xl p-5 sm:p-8 shadow-sm">
-			<span class="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-card/20 text-white mb-2 sm:mb-3 backdrop-blur-sm">
-				📝 Formulir Resmi Calon Siswa
-			</span>
-			<h1 class="text-xl sm:text-3xl font-extrabold leading-tight">Formulir Pendaftaran Peserta Didik Baru</h1>
-			<p class="text-blue-100 text-xs sm:text-sm mt-1.5 sm:mt-2 max-w-xl leading-relaxed">
-				Isi data bertahap dengan teliti sesuai dokumen resmi (Kartu Keluarga, Akta Kelahiran, Rapor).
-			</p>
+			<div class="flex items-start gap-4">
+				{#if data.lockedSchool?.logo}
+					<img src={data.lockedSchool.logo} alt={data.lockedSchool.name} class="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-white/90 object-contain p-1 shrink-0" />
+				{/if}
+				<div>
+					<span class="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-card/20 text-white mb-2 sm:mb-3 backdrop-blur-sm">
+						📝 Formulir Resmi Calon Siswa
+					</span>
+					{#if data.lockedSchool}
+						<h1 class="text-xl sm:text-3xl font-extrabold leading-tight">{data.lockedSchool.name}</h1>
+						<p class="text-blue-100 text-xs sm:text-sm mt-1.5 sm:mt-2 max-w-xl leading-relaxed">
+							Pendaftaran Peserta Didik Baru{data.lockedSchool.npsn ? ` · NPSN ${data.lockedSchool.npsn}` : ''}
+						</p>
+					{:else}
+						<h1 class="text-xl sm:text-3xl font-extrabold leading-tight">Formulir Pendaftaran Peserta Didik Baru</h1>
+						<p class="text-blue-100 text-xs sm:text-sm mt-1.5 sm:mt-2 max-w-xl leading-relaxed">
+							Isi data bertahap dengan teliti sesuai dokumen resmi (Kartu Keluarga, Akta Kelahiran, Rapor).
+						</p>
+					{/if}
+				</div>
+			</div>
 		</div>
 
 		<!-- Error Alert -->
@@ -369,19 +383,26 @@
 						<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 							<div>
 								<label for="school_id" class="block text-xs font-semibold text-foreground mb-1.5">Sekolah Tujuan <span class="text-destructive">*</span></label>
-								<select
-									id="school_id"
-									name="school_id"
-									bind:value={selectedSchoolId}
-									required
-									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-sm focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
-								>
-									{#each schoolsWithBatches as s}
-										<option value={s.id}>
-											{s.name}{s.npsn ? ` (${s.npsn})` : ''}
-										</option>
-									{/each}
-								</select>
+								{#if data.lockedSchool}
+									<input type="hidden" name="school_id" value={data.lockedSchool.id} />
+									<div class="w-full px-3 py-3 sm:py-2.5 bg-muted/50 border border-border rounded-xl text-sm font-semibold text-foreground">
+										{data.lockedSchool.name}{data.lockedSchool.npsn ? ` (${data.lockedSchool.npsn})` : ''}
+									</div>
+								{:else}
+									<select
+										id="school_id"
+										name="school_id"
+										bind:value={selectedSchoolId}
+										required
+										class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-sm focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
+									>
+										{#each schoolsWithBatches as s}
+											<option value={s.id}>
+												{s.name}{s.npsn ? ` (${s.npsn})` : ''}
+											</option>
+										{/each}
+									</select>
+								{/if}
 							</div>
 
 							<div>

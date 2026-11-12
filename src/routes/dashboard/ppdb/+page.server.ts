@@ -76,7 +76,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			.from(classes)
 			.where(and(eq(classes.school_id, schoolId), isNull(classes.deleted_at)))
 			.orderBy(asc(classes.name)),
-		db.select({ name: schools.name, timezone: schools.timezone }).from(schools).where(eq(schools.id, schoolId))
+		db.select({ name: schools.name, slug: schools.slug, timezone: schools.timezone }).from(schools).where(eq(schools.id, schoolId))
 ]);
 
 function todayInTimeZone(timeZone: string): string {
@@ -270,6 +270,8 @@ const today = todayInTimeZone(schoolRow[0]?.timezone || 'Asia/Jakarta');
 		tracks,
 		stats,
 		schoolName: schoolRow[0]?.name ?? 'Sekolah',
+		schoolSlug: schoolRow[0]?.slug ?? null,
+		schoolId: schoolId,
 		filters: {
 			batchId: batchFilter,
 			status: statusFilter,

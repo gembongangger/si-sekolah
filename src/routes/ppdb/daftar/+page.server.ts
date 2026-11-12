@@ -8,7 +8,13 @@ import { uploadFile, generateKey } from '$lib/server/services/storage';
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const db = locals.db;
 	const preselectedBatchId = url.searchParams.get('batch') ? Number(url.searchParams.get('batch')) : null;
-	const preselectedSchoolId = url.searchParams.get('sekolah') ? Number(url.searchParams.get('sekolah')) : null;
+
+	// Slug sekolah: dari path /ppdb/<slug> (via reroute) atau query ?sekolah=<slug|id>
+	const pathSlug = (() => {
+		const m = url.pathname.match(/^\/ppdb\/([^/]+)\/?$/);
+		return m && !['daftar', 'status', 'api'].includes(m[1]) ? m[1] : null;
+	})();
+	const slug = pathSlug ?? url.searchParams.get('sekolah') ?? null;
 
 	// Ambil gelombang pendaftaran yang aktif
 	const activeBatches = await db
@@ -65,17 +71,46 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		.orderBy(ppdbTracks.id);
 
 	// Hanya tampilkan gelombang yang berada dalam periode pendaftaran saat ini
-	const openBatches = activeBatches.filter((b) => {
+	let openBatches = activeBatches.filter((b) => {
 		const today = todayInTimeZone(b.schoolTimezone || 'Asia/Jakarta');
 		return today >= b.startDate && today <= b.endDate;
 	});
 
+	// Kunci ke satu sekolah jika URL memakai slug (halaman pendaftaran milik sekolah)
+	let lockedSchool: { id: number; name: string; npsn: string; address: string | null; logo: string | null } | null = null;
+	if (slug) {
+		const [s] = await db
+			.select({ id: schools.id, name: schools.name, npsn: schools.npsn, address: schools.address, logo: schools.logo_url })
+			.from(schools)
+			.where(
+				and(
+					/^\d+$/.test(slug) ? eq(schools.id, Number(slug)) : eq(schools.slug, slug),
+					eq(schools.is_active, 1),
+					isNull(schools.deleted_at)
+				)
+			)
+			.limit(1);
+		if (s) lockedSchool = s;
+	}
+
+	if (lockedSchool) {
+		openBatches = openBatches.filter((b) => b.schoolId === lockedSchool!.id);
+	}
+
+	const visibleSchools = lockedSchool
+		? activeSchools.filter((s) => s.id === lockedSchool!.id)
+		: activeSchools;
+	const visibleTracks = lockedSchool
+		? activeTracks.filter((t) => t.schoolId === lockedSchool!.id)
+		: activeTracks;
+
 	return {
 		activeBatches: openBatches,
-		activeSchools,
-		activeTracks,
+		activeSchools: visibleSchools,
+		activeTracks: visibleTracks,
 		preselectedBatchId,
-		preselectedSchoolId
+		preselectedSchoolId: lockedSchool?.id ?? null,
+		lockedSchool
 	};
 };
 

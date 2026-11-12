@@ -18,6 +18,7 @@ export const schools = sqliteTable(
 	{
 		id: integer('id').primaryKey({ autoIncrement: true }),
 		name: text('name').notNull(),
+		slug: text('slug').unique(),
 		npsn: text('npsn').notNull().unique(),
 		address: text('address'),
 		phone: text('phone'),

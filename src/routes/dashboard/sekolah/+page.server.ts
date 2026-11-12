@@ -3,9 +3,23 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters/zod4';
 import type { PageServerLoad, Actions } from './$types';
 import { requireSuperadmin } from '$lib/server/auth/guard';
-import { schoolSchema } from '$lib/validation/school';
+import { schoolSchema, slugify } from '$lib/validation/school';
 import { schools } from '$lib/server/db/schema';
-import { eq, isNull, desc } from 'drizzle-orm';
+import { eq, isNull, desc, ne, and } from 'drizzle-orm';
+
+/** Buat slug unik; jika bentrok tambah -2, -3, dst. */
+async function resolveSlug(db: any, input: string, exceptId?: number) {
+	let slug = slugify(input) || 'sekolah';
+	for (let i = 0; i < 50; i++) {
+		const existing = await db
+			.select({ id: schools.id })
+			.from(schools)
+			.where(exceptId != null ? and(eq(schools.slug, slug), ne(schools.id, exceptId)) : eq(schools.slug, slug));
+		if (!existing.length) return slug;
+		slug = `${slugify(input)}-${i + 1}`;
+	}
+	return `${slugify(input)}-${Date.now().toString(36).slice(-4)}`;
+}
 
 export const load: PageServerLoad = async ({ locals }) => {
 	requireSuperadmin(locals.user);
@@ -45,6 +59,7 @@ export const actions: Actions = {
 		await db.insert(schools).values({
 			name: form.data.name,
 			npsn: form.data.npsn,
+			slug: await resolveSlug(db, form.data.slug ?? form.data.name),
 			address: form.data.address ?? null,
 			phone: form.data.phone ?? null,
 			email: form.data.email || null,
@@ -85,6 +100,7 @@ export const actions: Actions = {
 			.set({
 				name: form.data.name,
 				npsn: form.data.npsn,
+				slug: await resolveSlug(db, form.data.slug ?? form.data.name, id),
 				address: form.data.address ?? null,
 				phone: form.data.phone ?? null,
 				email: form.data.email || null,
