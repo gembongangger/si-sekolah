@@ -1,8 +1,51 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import type { LayoutData } from './$types';
+	import { applySchoolTheme } from '$lib/theme';
+	import House from '@lucide/svelte/icons/house';
+	import Building2 from '@lucide/svelte/icons/building-2';
+	import Users from '@lucide/svelte/icons/users';
+	import CreditCard from '@lucide/svelte/icons/credit-card';
+	import UserCog from '@lucide/svelte/icons/user-cog';
+	import GraduationCap from '@lucide/svelte/icons/graduation-cap';
+	import ClipboardList from '@lucide/svelte/icons/clipboard-list';
+	import CalendarDays from '@lucide/svelte/icons/calendar-days';
+	import BookOpen from '@lucide/svelte/icons/book-open';
+	import Book from '@lucide/svelte/icons/book';
+	import Share2 from '@lucide/svelte/icons/share-2';
+	import Clock from '@lucide/svelte/icons/clock';
+	import CircleAlert from '@lucide/svelte/icons/circle-alert';
+	import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+	import Settings from '@lucide/svelte/icons/settings';
+	import FileText from '@lucide/svelte/icons/file-text';
+
+	const iconMap: Record<string, typeof House> = {
+		home: House,
+		building: Building2,
+		users: Users,
+		'credit-card': CreditCard,
+		'user-tie': UserCog,
+		'user-graduate': GraduationCap,
+		clipboard: ClipboardList,
+		calendar: CalendarDays,
+		'book-open': BookOpen,
+		book: Book,
+		'share-2': Share2,
+		clock: Clock,
+		'alert-circle': CircleAlert,
+		sliders: SlidersHorizontal,
+		exclamation: TriangleAlert,
+		settings: Settings,
+		'file-text': FileText
+	};
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
-	const { user } = data;
+	const { user, school } = data;
+
+	onMount(() => {
+		applySchoolTheme(school);
+	});
 
 	// Navigasi sesuai role
 	const navItems = $derived(() => {
@@ -27,6 +70,7 @@
 					{ href: '/dashboard/jam-pelajaran', label: 'Jam Pelajaran', icon: 'clock' },
 					{ href: '/dashboard/jadwal', label: 'Jadwal', icon: 'calendar' },
 					{ href: '/dashboard/sanksi', label: 'Sanksi Poin', icon: 'alert-circle' },
+					{ href: '/dashboard/pengaturan', label: 'Pengaturan Tema', icon: 'sliders' },
 					{ href: '/dashboard/pelanggaran', label: 'Pelanggaran', icon: 'exclamation' }
 				];
 			case 'admin_keuangan':
@@ -68,16 +112,16 @@
 	let sidebarOpen = $state(false);
 </script>
 
-<div class="min-h-screen bg-gray-100 flex">
+<div class="min-h-screen bg-background flex">
 	<!-- Sidebar -->
 	<aside
-		class="fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transform transition-transform duration-200
+		class="fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transform transition-transform duration-200
 			{sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static lg:inset-auto"
 	>
 		<!-- Logo & Nama Aplikasi -->
-		<div class="flex items-center gap-3 px-6 py-5 border-b border-gray-200">
-			<div class="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
-				<svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+		<div class="flex items-center gap-3 px-6 py-5 border-b border-border">
+			<div class="w-9 h-9 bg-primary rounded-xl flex items-center justify-center flex-shrink-0">
+				<svg class="w-5 h-5 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 					<path
 						stroke-linecap="round"
 						stroke-linejoin="round"
@@ -93,42 +137,43 @@
 				</svg>
 			</div>
 			<div class="min-w-0">
-				<p class="text-sm font-bold text-gray-900 truncate">SIS</p>
-				<p class="text-xs text-gray-500 truncate">Sistem Informasi Sekolah</p>
+				<p class="text-sm font-bold text-foreground truncate">SIS</p>
+				<p class="text-xs text-muted-foreground truncate">Sistem Informasi Sekolah</p>
 			</div>
 		</div>
 
 		<!-- Nav Items -->
 		<nav class="px-3 py-4 flex-1 space-y-0.5">
 			{#each navItems() as item}
+				{@const Icon = iconMap[item.icon] ?? House}
 				<a
 					href={item.href}
-					class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600
-						hover:bg-gray-100 hover:text-gray-900 transition-colors"
+					class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground
+						hover:bg-accent hover:text-accent-foreground transition-colors"
 				>
-					<span class="w-4 h-4 opacity-60 text-center">•</span>
+					<Icon class="w-4 h-4 flex-shrink-0" />
 					{item.label}
 				</a>
 			{/each}
 		</nav>
 
 		<!-- User Footer -->
-		<div class="border-t border-gray-200 px-4 py-4">
+		<div class="border-t border-border px-4 py-4">
 			<div class="flex items-center gap-3 mb-3">
 				<div
-					class="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold text-sm flex-shrink-0"
+					class="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary-foreground font-semibold text-sm flex-shrink-0"
 				>
 					{user.name.charAt(0).toUpperCase()}
 				</div>
 				<div class="min-w-0 flex-1">
-					<p class="text-sm font-medium text-gray-900 truncate">{user.name}</p>
-					<p class="text-xs text-gray-500 truncate">{roleLabels[user.role] ?? user.role}</p>
+					<p class="text-sm font-medium text-foreground truncate">{user.name}</p>
+					<p class="text-xs text-muted-foreground truncate">{roleLabels[user.role] ?? user.role}</p>
 				</div>
 			</div>
 			<form method="POST" action="/logout">
 				<button
 					type="submit"
-					class="w-full text-left px-3 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50
+					class="w-full text-left px-3 py-2 text-sm text-muted-foreground hover:text-destructive hover:bg-destructive/10
 						rounded-lg transition-colors flex items-center gap-2"
 				>
 					<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -156,16 +201,16 @@
 	<!-- Main Content -->
 	<div class="flex-1 flex flex-col min-w-0">
 		<!-- Top bar mobile -->
-		<header class="lg:hidden sticky top-0 z-30 bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3">
+		<header class="lg:hidden sticky top-0 z-30 bg-card border-b border-border px-4 py-3 flex items-center gap-3">
 			<button
 				onclick={() => (sidebarOpen = !sidebarOpen)}
-				class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+				class="p-2 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
 			>
 				<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
 				</svg>
 			</button>
-			<span class="text-sm font-semibold text-gray-800">SIS</span>
+			<span class="text-sm font-semibold text-foreground">SIS</span>
 		</header>
 
 		<main class="flex-1 p-6">

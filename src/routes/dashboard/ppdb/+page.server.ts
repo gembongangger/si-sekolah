@@ -9,9 +9,10 @@ import {
 	academicYears,
 	ppdbBatches,
 	ppdbRegistrations,
-	ppdbTracks
+	ppdbTracks,
+	ppdbRegistrationDocuments
 } from '$lib/server/db/schema';
-import { eq, and, isNull, desc, asc, or, like, sql } from 'drizzle-orm';
+import { eq, and, isNull, desc, asc, or, like, sql, inArray } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import { ppdbBatchSchema } from '$lib/validation/ppdb';
 import { DEFAULT_PPDB_TRACKS } from '$lib/validation/ppdb';
@@ -48,7 +49,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				quota: ppdbBatches.quota,
 				fee: ppdbBatches.registration_fee,
 				description: ppdbBatches.description,
-				isActive: ppdbBatches.is_active
+				isActive: ppdbBatches.is_active,
+				documentRequirements: ppdbBatches.document_requirements
 			})
 			.from(ppdbBatches)
 			.leftJoin(academicYears, eq(ppdbBatches.academic_year_id, academicYears.id))
@@ -191,6 +193,37 @@ const today = todayInTimeZone(schoolRow[0]?.timezone || 'Asia/Jakarta');
 		.orderBy(desc(ppdbRegistrations.created_at), desc(ppdbRegistrations.id))
 		.limit(500);
 
+	// Load dokumen upload per pendaftar
+	const regIds = registrations.map((r) => r.id);
+	const docRows = regIds.length
+		? await db
+				.select({
+					id: ppdbRegistrationDocuments.id,
+					registrationId: ppdbRegistrationDocuments.registration_id,
+					documentKey: ppdbRegistrationDocuments.document_key,
+					documentLabel: ppdbRegistrationDocuments.document_label,
+					url: ppdbRegistrationDocuments.url,
+					status: ppdbRegistrationDocuments.status,
+					rejectedReason: ppdbRegistrationDocuments.rejected_reason,
+					uploadedAt: ppdbRegistrationDocuments.uploaded_at
+				})
+				.from(ppdbRegistrationDocuments)
+				.where(inArray(ppdbRegistrationDocuments.registration_id, regIds))
+				.orderBy(asc(ppdbRegistrationDocuments.id))
+		: [];
+
+	const docsByReg = new Map<number, typeof docRows>();
+	for (const d of docRows) {
+		const list = docsByReg.get(d.registrationId) ?? [];
+		list.push(d);
+		docsByReg.set(d.registrationId, list);
+	}
+
+	const registrationsWithDocs = registrations.map((r) => ({
+		...r,
+		documents: docsByReg.get(r.id) ?? []
+	}));
+
 	// Jalur pendaftaran sekolah — seed default bila belum ada
 	const now = Date.now();
 	const existingTracks = await db
@@ -233,7 +266,7 @@ const today = todayInTimeZone(schoolRow[0]?.timezone || 'Asia/Jakarta');
 		})),
 		years,
 		classes: classRows,
-		registrations,
+		registrations: registrationsWithDocs,
 		tracks,
 		stats,
 		schoolName: schoolRow[0]?.name ?? 'Sekolah',
@@ -272,6 +305,27 @@ export const actions: Actions = {
 
 		const data = parsed.data;
 
+		// Parse document requirements from formData (optional)
+		let documentRequirements: { fields: { key: string; label: string; required: boolean; formats: string[] }[] } | null = null;
+		const docReqRaw = formData.get('document_requirements')?.toString().trim() || '';
+		if (docReqRaw) {
+			try {
+				const parsed = JSON.parse(docReqRaw);
+				const arr = Array.isArray(parsed) ? parsed : parsed?.fields;
+				if (!Array.isArray(arr)) throw new Error('not array');
+				documentRequirements = {
+					fields: arr.map((f: any) => ({
+						key: String(f.key || '').trim(),
+						label: String(f.label || f.key || '').trim(),
+						required: f.required !== false,
+						formats: Array.isArray(f.formats) && f.formats.length ? f.formats.map(String) : ['jpg', 'png', 'pdf']
+					})).filter((f: any) => f.key)
+				};
+			} catch {
+				return fail(400, { success: false, operation: 'createBatch', message: 'Format persyaratan dokumen tidak valid. Gunakan array JSON.' });
+			}
+		}
+
 		if (data.start_date > data.end_date) {
 			return fail(400, {
 				success: false,
@@ -309,6 +363,7 @@ export const actions: Actions = {
 			quota: data.quota,
 			registration_fee: data.registration_fee,
 			description: data.description ?? null,
+			document_requirements: documentRequirements,
 			is_active: data.is_active,
 			created_at: now,
 			updated_at: now
@@ -439,6 +494,26 @@ export const actions: Actions = {
 		const description = formData.get('description')?.toString().trim() || null;
 		const isActive = formData.get('is_active') === '0' ? 0 : 1;
 
+		let documentRequirements: { fields: { key: string; label: string; required: boolean; formats: string[] }[] } | null = null;
+		const docReqRaw = formData.get('document_requirements')?.toString().trim() || '';
+		if (docReqRaw) {
+			try {
+				const parsed = JSON.parse(docReqRaw);
+				const arr = Array.isArray(parsed) ? parsed : parsed?.fields;
+				if (!Array.isArray(arr)) throw new Error('not array');
+				documentRequirements = {
+					fields: arr.map((f: any) => ({
+						key: String(f.key || '').trim(),
+						label: String(f.label || f.key || '').trim(),
+						required: f.required !== false,
+						formats: Array.isArray(f.formats) && f.formats.length ? f.formats.map(String) : ['jpg', 'png', 'pdf']
+					})).filter((f: any) => f.key)
+				};
+			} catch {
+				return fail(400, { success: false, operation: 'updateBatch', message: 'Format persyaratan dokumen tidak valid. Gunakan array JSON.' });
+			}
+		}
+
 		if (!batchId) {
 			return fail(400, { success: false, operation: 'updateBatch', message: 'ID gelombang tidak valid.' });
 		}
@@ -490,6 +565,7 @@ export const actions: Actions = {
 				registration_fee: registrationFee,
 				description,
 				is_active: isActive,
+				document_requirements: documentRequirements,
 				updated_at: Date.now()
 			})
 			.where(eq(ppdbBatches.id, batch.id));
@@ -588,6 +664,53 @@ export const actions: Actions = {
 			success: true,
 			operation: 'updateRegistration',
 			message: `Pendaftar ${reg.full_name} berhasil ${label[status]}.`
+		};
+	},
+
+	verifyDocument: async ({ request, locals }) => {
+		const user = requireAdminSekolah(locals.user);
+		const db = locals.db;
+		const schoolId = user.schoolId;
+		const formData = await request.formData();
+
+		const docId = Number(formData.get('document_id'));
+		const action = formData.get('doc_action')?.toString(); // verify | reject | pending
+		const reason = formData.get('rejected_reason')?.toString().trim() || null;
+
+		if (!docId || !action || !['verify', 'reject', 'pending'].includes(action)) {
+			return fail(400, { success: false, operation: 'verifyDocument', message: 'Aksi dokumen tidak valid.' });
+		}
+
+		// Pastikan dokumen milik sekolah ini
+		const [doc] = await db
+			.select({ id: ppdbRegistrationDocuments.id })
+			.from(ppdbRegistrationDocuments)
+			.innerJoin(ppdbRegistrations, eq(ppdbRegistrationDocuments.registration_id, ppdbRegistrations.id))
+			.where(and(eq(ppdbRegistrationDocuments.id, docId), eq(ppdbRegistrations.school_id, schoolId)))
+			.limit(1);
+
+		if (!doc) {
+			return fail(404, { success: false, operation: 'verifyDocument', message: 'Dokumen tidak ditemukan.' });
+		}
+
+		const statusMap: Record<string, string> = { verify: 'verified', reject: 'rejected', pending: 'pending' };
+		const status = statusMap[action];
+
+		await db
+			.update(ppdbRegistrationDocuments)
+			.set({
+				status,
+				rejected_reason: status === 'rejected' ? reason : null,
+				verified_by: status === 'pending' ? null : user.id,
+				verified_at: status === 'pending' ? null : Date.now()
+			})
+			.where(eq(ppdbRegistrationDocuments.id, docId));
+
+		return {
+			success: true,
+			operation: 'verifyDocument',
+			message:
+				status === 'verified' ? 'Dokumen disetujui.' : status === 'rejected' ? 'Dokumen ditolak.' : 'Status dokumen dikembalikan ke pending.'
 		};
 	},
 

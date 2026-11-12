@@ -7,7 +7,8 @@ import {
 	students,
 	classes,
 	academicYears,
-	sppPayments
+	sppPayments,
+	keuanganTransactions
 } from '$lib/server/db/schema';
 import { eq, and, desc, asc, sql, count } from 'drizzle-orm';
 
@@ -178,6 +179,30 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		.orderBy(desc(sppPayments.payment_date), desc(sppPayments.id))
 		.limit(100);
 
+	// 4. JURNAL PENGELUARAN / PENARIKAN DANA
+	const expenseRows = await db
+		.select({
+			id: keuanganTransactions.id,
+			date: keuanganTransactions.date,
+			category: keuanganTransactions.category,
+			description: keuanganTransactions.description,
+			notes: keuanganTransactions.notes,
+			amount: keuanganTransactions.amount,
+			createdByName: sql<string>`(SELECT name FROM users WHERE id = ${keuanganTransactions.created_by})`
+		})
+		.from(keuanganTransactions)
+		.where(
+			and(
+				eq(keuanganTransactions.school_id, schoolId),
+				eq(keuanganTransactions.type, 'pengeluaran'),
+				selectedYearId ? eq(keuanganTransactions.academic_year_id, selectedYearId) : sql`1=1`
+			)
+		)
+		.orderBy(desc(keuanganTransactions.date), desc(keuanganTransactions.id))
+		.limit(100);
+
+	const totalPengeluaran = expenseRows.reduce((acc, r) => acc + Number(r.amount), 0);
+
 	return {
 		school,
 		allYears,
@@ -195,6 +220,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 					: 0
 		},
 		arrearsRows,
-		cashReceipts
+		cashReceipts,
+		expenseRows,
+		totalPengeluaran
 	};
 };

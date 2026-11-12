@@ -4,239 +4,228 @@
 	import { zodClient } from 'sveltekit-superforms/adapters/zod4';
 	import { schoolSchema } from '$lib/validation/school';
 	import type { PageData } from './$types';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { Label } from '$lib/components/ui/label/index.js';
+	import { Card } from '$lib/components/ui/card/index.js';
+	import {
+		Table,
+		TableBody,
+		TableCell,
+		TableHead,
+		TableHeader,
+		TableRow
+	} from '$lib/components/ui/table/index.js';
+	import { Badge } from '$lib/components/ui/badge/index.js';
+	import { Alert, AlertDescription } from '$lib/components/ui/alert/index.js';
+	import {
+		Dialog,
+		DialogContent,
+		DialogDescription,
+		DialogFooter,
+		DialogHeader,
+		DialogTitle
+	} from '$lib/components/ui/dialog/index.js';
 
 	let { data }: { data: PageData } = $props();
 
-	// Form tambah sekolah baru
 	const { form, errors, message, enhance, submitting, reset } = superForm(data.form, {
 		validators: zodClient(schoolSchema),
 		onUpdated({ form: f }) {
-			if (f.message && !String(f.message).toLowerCase().includes('tidak valid') && !String(f.message).toLowerCase().includes('sudah')) {
+			if (String(f.message).includes('berhasil')) {
 				showAddModal = false;
+				editSchool = null;
 				reset();
 			}
 		}
 	});
 
 	let showAddModal = $state(false);
-	let deleteTarget: { id: number; name: string } | null = $state(null);
+	let showEditModal = $state(false);
+	let showDeleteModal = $state(false);
 	let editSchool: (typeof data.schools)[0] | null = $state(null);
+	let deleteTarget: { id: number; name: string } | null = $state(null);
 
 	function inputCls(err?: unknown) {
 		const hasErr = Array.isArray(err) ? err.length > 0 : (err != null && typeof err === 'object' && '_errors' in err ? !!(err as any)._errors?.length : !!err);
 		return `w-full px-3.5 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-opacity-20 transition-colors ${
-			hasErr
-				? 'border-red-400 focus:ring-red-500'
-				: 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+			hasErr ? 'border-destructive focus:ring-destructive' : 'border-input focus:ring-ring'
 		}`;
 	}
 </script>
 
 <svelte:head>
-	<title>Manajemen Sekolah — SIS</title>
+	<title>Sekolah — SIS</title>
 </svelte:head>
 
 <div class="max-w-5xl">
-	<!-- Header -->
 	<div class="flex items-center justify-between mb-6">
 		<div>
-			<h1 class="text-xl font-bold text-gray-900">Manajemen Sekolah</h1>
-			<p class="text-sm text-gray-500 mt-0.5">Kelola data sekolah yang terdaftar di platform</p>
+			<h1 class="text-xl font-bold text-foreground">Sekolah</h1>
+			<p class="text-sm text-muted-foreground mt-0.5">Kelola data sekolah yang terdaftar</p>
 		</div>
-		<button
-			onclick={() => (showAddModal = true)}
-			class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
-		>
-			+ Tambah Sekolah
-		</button>
+		<Button onclick={() => (showAddModal = true)}>+ Tambah Sekolah</Button>
 	</div>
 
-	<!-- Tabel -->
-	<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+	<Card>
 		{#if data.schools.length === 0}
-			<div class="py-16 text-center text-gray-400 text-sm">Belum ada sekolah terdaftar.</div>
+			<div class="py-16 text-center text-muted-foreground text-sm">Belum ada sekolah terdaftar.</div>
 		{:else}
-			<div class="overflow-x-auto">
-				<table class="w-full text-sm">
-				<thead class="bg-gray-50 border-b border-gray-200">
-					<tr>
-						<th class="text-left px-5 py-3 font-medium text-gray-500">Nama Sekolah</th>
-						<th class="text-left px-5 py-3 font-medium text-gray-500">NPSN</th>
-						<th class="text-left px-5 py-3 font-medium text-gray-500">Kontak</th>
-						<th class="text-left px-5 py-3 font-medium text-gray-500">Status</th>
-						<th class="text-right px-5 py-3 font-medium text-gray-500">Aksi</th>
-					</tr>
-				</thead>
-				<tbody class="divide-y divide-gray-100">
-					{#each data.schools as school (school.id)}
-						<tr class="hover:bg-gray-50 transition-colors">
-							<td class="px-5 py-3.5 font-medium text-gray-900">{school.name}</td>
-							<td class="px-5 py-3.5 text-gray-600 font-mono text-xs">{school.npsn}</td>
-							<td class="px-5 py-3.5 text-gray-500">{school.email || school.phone || '—'}</td>
-							<td class="px-5 py-3.5">
-								{#if school.is_active}
-									<span class="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
-										<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Aktif
-									</span>
-								{:else}
-									<span class="inline-flex items-center gap-1 text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">
-										<span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>Nonaktif
-									</span>
-								{/if}
-							</td>
-							<td class="px-5 py-3.5 text-right space-x-3">
-								<button
-									onclick={() => (editSchool = school)}
-									class="text-xs text-blue-600 hover:text-blue-800 font-medium"
-								>Edit</button>
-								<button
-									onclick={() => (deleteTarget = { id: school.id, name: school.name })}
-									class="text-xs text-red-500 hover:text-red-700 font-medium"
-								>Hapus</button>
-							</td>
-						</tr>
+			<Table>
+				<TableHeader>
+					<TableRow>
+						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Nama Sekolah</TableHead>
+						<TableHead class="px-5 py-3 font-medium text-muted-foreground">NPSN</TableHead>
+						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Telepon</TableHead>
+						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Email</TableHead>
+						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Status</TableHead>
+						<TableHead class="text-right px-5 py-3 font-medium text-muted-foreground">Aksi</TableHead>
+					</TableRow>
+				</TableHeader>
+				<TableBody class="divide-y divide-border">
+					{#each data.schools as s (s.id)}
+						<TableRow class="hover:bg-accent transition-colors">
+							<TableCell class="px-5 py-3.5 font-medium text-foreground">{s.name}</TableCell>
+							<TableCell class="px-5 py-3.5 text-muted-foreground">{s.npsn}</TableCell>
+							<TableCell class="px-5 py-3.5 text-muted-foreground">{s.phone ?? '—'}</TableCell>
+							<TableCell class="px-5 py-3.5 text-muted-foreground">{s.email ?? '—'}</TableCell>
+							<TableCell class="px-5 py-3.5">
+								<Badge class={s.is_active ? 'bg-success/10 text-success-foreground' : 'bg-muted text-muted-foreground'}>
+									{s.is_active ? 'Aktif' : 'Nonaktif'}
+								</Badge>
+							</TableCell>
+							<TableCell class="px-5 py-3.5 text-right space-x-3">
+								<Button variant="ghost" size="sm" onclick={() => { editSchool = s; showEditModal = true; }}>Edit</Button>
+								<Button variant="destructive" size="sm" onclick={() => { deleteTarget = { id: s.id, name: s.name }; showDeleteModal = true; }}>Hapus</Button>
+							</TableCell>
+						</TableRow>
 					{/each}
-				</tbody>
-			</table>
-			</div>
+				</TableBody>
+			</Table>
 		{/if}
-	</div>
+	</Card>
 </div>
 
-<!-- ===== MODAL TAMBAH ===== -->
+<!-- MODAL TAMBAH -->
 {#if showAddModal}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-		<div class="bg-white rounded-2xl shadow-xl w-full max-w-full sm:max-w-lg p-4 sm:p-6">
-			<div class="flex items-center justify-between mb-5">
-				<h2 class="text-lg font-bold text-gray-900">Tambah Sekolah Baru</h2>
-				<button onclick={() => (showAddModal = false)} class="text-gray-400 hover:text-gray-600">✕</button>
-			</div>
-
+	<Dialog bind:open={showAddModal}>
+		<DialogContent class="sm:max-w-lg max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+			<DialogHeader class="flex items-center justify-between mb-5">
+				<DialogTitle class="text-lg font-bold text-foreground">Tambah Sekolah</DialogTitle>
+				<Button variant="ghost" size="sm" class="h-6 w-6 p-0" onclick={() => (showAddModal = false)}>✕</Button>
+			</DialogHeader>
 			{#if $message}
-				<div class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
-					{$message}
-				</div>
+				<Alert variant="destructive" class="mb-4">
+					<AlertDescription>{$message}</AlertDescription>
+				</Alert>
 			{/if}
-
 			<form method="POST" action="?/create" use:enhance class="space-y-4">
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1">Nama Sekolah *</label>
-					<input name="name" bind:value={$form.name} type="text" placeholder="SDN / SMP / SMA ..." class={inputCls(hasError($errors.name) ? ['e'] : undefined)} />
-					{#if $errors.name}<p class="mt-1 text-xs text-red-600">{fieldError($errors.name)}</p>{/if}
+					<Label for="create-name-input">Nama Sekolah *</Label>
+					<Input id="create-name-input" name="name" bind:value={$form.name} type="text" placeholder="SDN / SMP / SMA ..." class={inputCls(hasError($errors.name) ? ['e'] : undefined)} />
+					{#if $errors.name}<p class="mt-1 text-xs text-destructive">{fieldError($errors.name)}</p>{/if}
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1">NPSN *</label>
-					<input name="npsn" bind:value={$form.npsn} type="text" placeholder="8 digit angka" maxlength="8" class={inputCls(hasError($errors.npsn) ? ['e'] : undefined)} />
-					{#if $errors.npsn}<p class="mt-1 text-xs text-red-600">{fieldError($errors.npsn)}</p>{/if}
-				</div>
-				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-					<div>
-						<label class="block text-sm font-medium text-gray-700 mb-1">Telepon</label>
-						<input name="phone" bind:value={$form.phone} type="text" class={inputCls(hasError($errors.phone) ? ['e'] : undefined)} />
-					</div>
-					<div>
-						<label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-						<input name="email" bind:value={$form.email} type="email" class={inputCls(hasError($errors.email) ? ['e'] : undefined)} />
-						{#if $errors.email}<p class="mt-1 text-xs text-red-600">{fieldError($errors.email)}</p>{/if}
-					</div>
+					<Label for="create-npsn-input">NPSN *</Label>
+					<Input id="create-npsn-input" name="npsn" bind:value={$form.npsn} type="text" placeholder="8 digit angka" maxlength={8} class={inputCls(hasError($errors.npsn) ? ['e'] : undefined)} />
+					{#if $errors.npsn}<p class="mt-1 text-xs text-destructive">{fieldError($errors.npsn)}</p>{/if}
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1">Alamat</label>
-					<textarea name="address" bind:value={$form.address} rows="2" class="{inputCls()} resize-none"></textarea>
+					<Label for="create-phone-input">Telepon</Label>
+					<Input id="create-phone-input" name="phone" bind:value={$form.phone} type="text" class={inputCls(hasError($errors.phone) ? ['e'] : undefined)} />
+					{#if $errors.phone}<p class="mt-1 text-xs text-destructive">{fieldError($errors.phone)}</p>{/if}
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-					<select name="is_active" bind:value={$form.is_active} class={inputCls()}>
+					<Label for="create-email-input">Email</Label>
+					<Input id="create-email-input" name="email" bind:value={$form.email} type="email" class={inputCls(hasError($errors.email) ? ['e'] : undefined)} />
+					{#if $errors.email}<p class="mt-1 text-xs text-destructive">{fieldError($errors.email)}</p>{/if}
+				</div>
+				<div>
+					<Label for="create-address-input">Alamat</Label>
+					<textarea name="address" bind:value={$form.address} rows={2} class="{inputCls()} resize-none" />
+				</div>
+				<div>
+					<Label for="create-status-input">Status</Label>
+					<select id="create-status-input" name="is_active" bind:value={$form.is_active} class={inputCls()}>
 						<option value={1}>Aktif</option>
 						<option value={0}>Nonaktif</option>
 					</select>
 				</div>
 				<div class="flex justify-end gap-3 pt-2">
-					<button type="button" onclick={() => (showAddModal = false)} class="px-4 py-2 text-sm text-gray-600 border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors">
-						Batal
-					</button>
-					<button type="submit" disabled={$submitting} class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg transition-colors">
+					<Button type="button" variant="outline" onclick={() => (showAddModal = false)}>Batal</Button>
+					<Button type="submit" disabled={$submitting}>
 						{$submitting ? 'Menyimpan...' : 'Simpan'}
-					</button>
+					</Button>
 				</div>
 			</form>
-		</div>
-	</div>
+		</DialogContent>
+	</Dialog>
 {/if}
 
-<!-- ===== MODAL EDIT ===== -->
+<!-- MODAL EDIT -->
 {#if editSchool}
-	{@const s = editSchool}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-		<div class="bg-white rounded-2xl shadow-xl w-full max-w-full sm:max-w-lg p-4 sm:p-6">
-			<div class="flex items-center justify-between mb-5">
-				<h2 class="text-lg font-bold text-gray-900">Edit Sekolah</h2>
-				<button onclick={() => (editSchool = null)} class="text-gray-400 hover:text-gray-600">✕</button>
-			</div>
+	{@const s = editSchool as any}
+	<Dialog bind:open={showEditModal}>
+		<DialogContent class="sm:max-w-lg max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+			<DialogHeader class="flex items-center justify-between mb-5">
+				<DialogTitle class="text-lg font-bold text-foreground">Edit Sekolah</DialogTitle>
+				<Button variant="ghost" size="sm" class="h-6 w-6 p-0" onclick={() => { editSchool = null; showEditModal = false; }}>✕</Button>
+			</DialogHeader>
 			<form method="POST" action="?/update" class="space-y-4">
 				<input type="hidden" name="id" value={s.id} />
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1">Nama Sekolah *</label>
-					<input name="name" value={s.name} type="text" class={inputCls()} />
+					<Label for="edit-name-input">Nama Sekolah *</Label>
+					<Input id="edit-name-input" name="name" bind:value={$form.name} type="text" class={inputCls()} />
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1">NPSN *</label>
-					<input name="npsn" value={s.npsn} type="text" maxlength="8" class={inputCls()} />
-				</div>
-				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-					<div>
-						<label class="block text-sm font-medium text-gray-700 mb-1">Telepon</label>
-						<input name="phone" value={s.phone ?? ''} type="text" class={inputCls()} />
-					</div>
-					<div>
-						<label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-						<input name="email" value={s.email ?? ''} type="email" class={inputCls()} />
-					</div>
+					<Label for="edit-npsn-input">NPSN *</Label>
+					<Input id="edit-npsn-input" name="npsn" bind:value={$form.npsn} type="text" maxlength={8} class={inputCls()} />
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1">Alamat</label>
-					<textarea name="address" rows="2" class="{inputCls()} resize-none">{s.address ?? ''}</textarea>
+					<Label for="edit-phone-input">Telepon</Label>
+					<Input id="edit-phone-input" name="phone" bind:value={$form.phone} type="text" class={inputCls()} />
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-					<select name="is_active" class={inputCls()}>
+					<Label for="edit-email-input">Email</Label>
+					<Input id="edit-email-input" name="email" bind:value={$form.email} type="email" class={inputCls()} />
+				</div>
+				<div>
+					<Label for="edit-address-input">Alamat</Label>
+					<textarea name="address" bind:value={$form.address} rows={2} class="{inputCls()} resize-none">{s.address ?? ''}</textarea>
+				</div>
+				<div>
+					<Label for="edit-status-input">Status</Label>
+					<select id="edit-status-input" name="is_active" class={inputCls()}>
 						<option value={1} selected={s.is_active === 1}>Aktif</option>
 						<option value={0} selected={s.is_active === 0}>Nonaktif</option>
 					</select>
 				</div>
 				<div class="flex justify-end gap-3 pt-2">
-					<button type="button" onclick={() => (editSchool = null)} class="px-4 py-2 text-sm text-gray-600 border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors">
-						Batal
-					</button>
-					<button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
-						Simpan Perubahan
-					</button>
+					<Button type="button" variant="outline" onclick={() => { editSchool = null; showEditModal = false; }}>Batal</Button>
+					<Button type="submit">Simpan Perubahan</Button>
 				</div>
 			</form>
-		</div>
-	</div>
+		</DialogContent>
+	</Dialog>
 {/if}
 
-<!-- ===== MODAL KONFIRMASI HAPUS ===== -->
+<!-- MODAL HAPUS -->
 {#if deleteTarget}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-		<div class="bg-white rounded-2xl shadow-xl w-full max-w-full sm:max-w-sm p-4 sm:p-6">
-			<h2 class="text-lg font-bold text-gray-900 mb-2">Hapus Sekolah?</h2>
-			<p class="text-sm text-gray-500 mb-6">
-				Sekolah <strong>{deleteTarget.name}</strong> akan dihapus. Semua data terkait (guru, siswa, dll.) ikut terhapus.
-				Tindakan ini tidak dapat dibatalkan.
-			</p>
-			<div class="flex justify-end gap-3">
-				<button onclick={() => (deleteTarget = null)} class="px-4 py-2 text-sm text-gray-600 border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors">
-					Batal
-				</button>
+	<Dialog bind:open={showDeleteModal}>
+		<DialogContent class="sm:max-w-sm p-4 sm:p-6">
+			<DialogHeader>
+				<DialogTitle class="text-lg font-bold text-foreground">Hapus Sekolah?</DialogTitle>
+				<DialogDescription class="text-sm text-muted-foreground">
+					Sekolah <strong>{deleteTarget.name}</strong> akan dihapus. Tindakan ini tidak dapat dibatalkan.
+				</DialogDescription>
+			</DialogHeader>
+			<DialogFooter class="gap-2 pt-2">
+				<Button type="button" variant="outline" onclick={() => { deleteTarget = null; showDeleteModal = false; }}>Batal</Button>
 				<form method="POST" action="?/delete">
 					<input type="hidden" name="id" value={deleteTarget.id} />
-					<button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors">
-						Ya, Hapus
-					</button>
+					<Button type="submit" variant="destructive">Ya, Hapus</Button>
 				</form>
-			</div>
-		</div>
-	</div>
+			</DialogFooter>
+		</DialogContent>
+	</Dialog>
 {/if}

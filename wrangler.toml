@@ -17,3 +17,7 @@ binding = "DB"
 database_name = "school-info-db"
 database_id = "15e3ddc5-dda1-464c-b0d8-c97e52a3a4c9"
 
+[[r2_buckets]]
+binding = "STORAGE_BUCKET"
+bucket_name = "si-sekolah-storage"
+

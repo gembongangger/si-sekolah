@@ -1,56 +1,31 @@
-# sv
+# Sistem Informasi Sekolah (SIS)
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Proyek ini dijalankan dengan **bun** — jangan gunakan npm/yarn/pnpm.
 
-## Creating a project
-
-If you're seeing this, you've probably already done this step. Congrats!
+## Setup
 
 ```sh
-# create a new project
-npx sv create my-app
-```
-
-To recreate this project with the same configuration:
-
-```sh
-# recreate this project
-npx sv@1.2.0 create --template minimal --types ts --no-install skel2
-```
-
-## Adding features
-
-Add features to your project with `sv add`:
-
-```sh
-npx sv add
-```
-
-For example, to add Tailwind CSS:
-
-```sh
-npx sv add tailwindcss
+bun install
 ```
 
 ## Developing
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
 ```sh
-npm run dev
+bun run dev
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+# atau jalankan server dan buka aplikasi di tab browser baru
+bun run dev -- --open
 ```
 
-## Building
-
-To create a production version of your app:
+## Build & Preview
 
 ```sh
-npm run build
+bun run build
+bun run preview
 ```
 
-You can preview the production build with `npm run preview`.
+## Lainnya
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+- Type check: `bun run check`
+- Seed dummy data: `bun run seed:dummy`
+- Deploy target: Cloudflare (adapter-cloudflare, `wrangler.toml`)

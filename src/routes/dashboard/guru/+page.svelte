@@ -4,6 +4,30 @@
 	import { zodClient } from 'sveltekit-superforms/adapters/zod4';
 	import { guruCreateSchema } from '$lib/validation/guru';
 	import type { PageData } from './$types';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import PencilIcon from '@lucide/svelte/icons/pencil';
+	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { Label } from '$lib/components/ui/label/index.js';
+	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card/index.js';
+	import {
+		Table,
+		TableBody,
+		TableCell,
+		TableHead,
+		TableHeader,
+		TableRow
+	} from '$lib/components/ui/table/index.js';
+	import { Badge } from '$lib/components/ui/badge/index.js';
+	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert/index.js';
+	import {
+		Dialog,
+		DialogContent,
+		DialogDescription,
+		DialogFooter,
+		DialogHeader,
+		DialogTitle
+	} from '$lib/components/ui/dialog/index.js';
 
 	let { data }: { data: PageData } = $props();
 
@@ -18,13 +42,15 @@
 	});
 
 	let showAddModal = $state(false);
+	let showEditModal = $state(false);
+	let showDeleteModal = $state(false);
 	let editGuru: (typeof data.gurus)[0] | null = $state(null);
 	let deleteTarget: { id: number; name: string } | null = $state(null);
 
 	function inputCls(err?: unknown) {
 		const hasErr = Array.isArray(err) ? err.length > 0 : (err != null && typeof err === 'object' && '_errors' in err ? !!(err as any)._errors?.length : !!err);
 		return `w-full px-3.5 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-opacity-20 transition-colors ${
-			hasErr ? 'border-red-400 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+			hasErr ? 'border-destructive focus:ring-destructive' : 'border-input focus:ring-ring'
 		}`;
 	}
 </script>
@@ -36,99 +62,94 @@
 <div class="max-w-5xl">
 	<div class="flex items-center justify-between mb-6">
 		<div>
-			<h1 class="text-xl font-bold text-gray-900">Manajemen Guru</h1>
-			<p class="text-sm text-gray-500 mt-0.5">Kelola data guru di sekolah Anda</p>
+			<h1 class="text-xl font-bold text-foreground">Manajemen Guru</h1>
+			<p class="text-sm text-muted-foreground mt-0.5">Kelola data guru di sekolah Anda</p>
 		</div>
-		<button
-			onclick={() => (showAddModal = true)}
-			class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
-		>
-			+ Tambah Guru
-		</button>
+		<Button onclick={() => (showAddModal = true)}>+ Tambah Guru</Button>
 	</div>
 
-	<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+	<Card>
 		{#if data.gurus.length === 0}
-			<div class="py-16 text-center text-gray-400 text-sm">Belum ada guru terdaftar.</div>
+			<div class="py-16 text-center text-muted-foreground text-sm">Belum ada guru terdaftar.</div>
 		{:else}
-			<div class="overflow-x-auto">
-				<table class="w-full text-sm">
-				<thead class="bg-gray-50 border-b border-gray-200">
-					<tr>
-						<th class="text-left px-5 py-3 font-medium text-gray-500">Nama</th>
-						<th class="text-left px-5 py-3 font-medium text-gray-500">Email</th>
-						<th class="text-left px-5 py-3 font-medium text-gray-500">NIP</th>
-						<th class="text-left px-5 py-3 font-medium text-gray-500">L/P</th>
-						<th class="text-left px-5 py-3 font-medium text-gray-500">Status</th>
-						<th class="text-right px-5 py-3 font-medium text-gray-500">Aksi</th>
-					</tr>
-				</thead>
-				<tbody class="divide-y divide-gray-100">
+			<Table>
+				<TableHeader>
+					<TableRow>
+						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Nama</TableHead>
+						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Email</TableHead>
+						<TableHead class="px-5 py-3 font-medium text-muted-foreground">NIP</TableHead>
+						<TableHead class="px-5 py-3 font-medium text-muted-foreground">L/P</TableHead>
+						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Status</TableHead>
+						<TableHead class="text-right px-5 py-3 font-medium text-muted-foreground">Aksi</TableHead>
+					</TableRow>
+				</TableHeader>
+				<TableBody class="divide-y divide-border">
 					{#each data.gurus as guru (guru.id)}
-						<tr class="hover:bg-gray-50 transition-colors">
-							<td class="px-5 py-3.5 font-medium text-gray-900">{guru.name}</td>
-							<td class="px-5 py-3.5 text-gray-500">{guru.email}</td>
-							<td class="px-5 py-3.5 text-gray-500 font-mono text-xs">{guru.nip ?? '—'}</td>
-							<td class="px-5 py-3.5 text-gray-500">{guru.gender ?? '—'}</td>
-							<td class="px-5 py-3.5">
+						<TableRow class="hover:bg-accent transition-colors">
+							<TableCell class="px-5 py-3.5 font-medium text-foreground">{guru.name}</TableCell>
+							<TableCell class="px-5 py-3.5 text-muted-foreground">{guru.email}</TableCell>
+							<TableCell class="px-5 py-3.5 text-muted-foreground font-mono text-xs">{guru.nip ?? '—'}</TableCell>
+							<TableCell class="px-5 py-3.5 text-muted-foreground">{guru.gender ?? '—'}</TableCell>
+							<TableCell class="px-5 py-3.5">
 								{#if guru.is_active}
-									<span class="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">
-										<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Aktif
-									</span>
+									<Badge class="bg-success/10 text-success-foreground">Aktif</Badge>
 								{:else}
-									<span class="inline-flex items-center gap-1 text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">
-										<span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>Nonaktif
-									</span>
+									<Badge variant="secondary">Nonaktif</Badge>
 								{/if}
-							</td>
-							<td class="px-5 py-3.5 text-right space-x-3">
-								<button onclick={() => (editGuru = guru)} class="text-xs text-blue-600 hover:text-blue-800 font-medium">Edit</button>
-								<button onclick={() => (deleteTarget = { id: guru.id, name: guru.name })} class="text-xs text-red-500 hover:text-red-700 font-medium">Hapus</button>
-							</td>
-						</tr>
+							</TableCell>
+							<TableCell class="px-5 py-3.5 text-right space-x-3">
+								<Button variant="ghost" size="sm" onclick={() => { editGuru = guru; showEditModal = true; }}>
+									<PencilIcon data-icon="inline-start" /> Edit
+								</Button>
+								<Button variant="destructive" size="sm" onclick={() => { deleteTarget = { id: guru.id, name: guru.name }; showDeleteModal = true; }}>
+									<Trash2Icon data-icon="inline-start" /> Hapus
+								</Button>
+							</TableCell>
+						</TableRow>
 					{/each}
-				</tbody>
-			</table>
-			</div>
+				</TableBody>
+			</Table>
 		{/if}
-	</div>
+	</Card>
 </div>
 
 <!-- MODAL TAMBAH -->
 {#if showAddModal}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-		<div class="bg-white rounded-2xl shadow-xl w-full max-w-full sm:max-w-lg p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
-			<div class="flex items-center justify-between mb-5">
-				<h2 class="text-lg font-bold text-gray-900">Tambah Guru</h2>
-				<button onclick={() => (showAddModal = false)} class="text-gray-400 hover:text-gray-600">✕</button>
-			</div>
+	<Dialog bind:open={showAddModal}>
+		<DialogContent class="sm:max-w-lg max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+			<DialogHeader class="flex items-center justify-between mb-5">
+				<DialogTitle class="text-lg font-bold text-foreground">Tambah Guru</DialogTitle>
+				<Button variant="ghost" size="sm" class="h-6 w-6 p-0" onclick={() => (showAddModal = false)}>✕</Button>
+			</DialogHeader>
 			{#if $message}
-				<div class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{$message}</div>
+				<Alert variant="destructive" class="mb-4">
+					<AlertDescription>{$message}</AlertDescription>
+				</Alert>
 			{/if}
 			<form method="POST" action="?/create" use:enhance class="space-y-4">
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap *</label>
-					<input name="name" bind:value={$form.name} type="text" class={inputCls(hasError($errors.name) ? ['e'] : undefined)} />
-					{#if $errors.name}<p class="mt-1 text-xs text-red-600">{fieldError($errors.name)}</p>{/if}
+					<Label for="create-name-input">Nama Lengkap *</Label>
+					<Input id="create-name-input" name="name" bind:value={$form.name} type="text" class={inputCls(hasError($errors.name) ? ['e'] : undefined)} />
+					{#if $errors.name}<p class="mt-1 text-xs text-destructive">{fieldError($errors.name)}</p>{/if}
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-					<input name="email" bind:value={$form.email} type="email" class={inputCls(hasError($errors.email) ? ['e'] : undefined)} />
-					{#if $errors.email}<p class="mt-1 text-xs text-red-600">{fieldError($errors.email)}</p>{/if}
+					<Label for="create-email-input">Email *</Label>
+					<Input id="create-email-input" name="email" bind:value={$form.email} type="email" class={inputCls(hasError($errors.email) ? ['e'] : undefined)} />
+					{#if $errors.email}<p class="mt-1 text-xs text-destructive">{fieldError($errors.email)}</p>{/if}
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1">Password *</label>
-					<input name="password" bind:value={$form.password} type="password" placeholder="Min. 8 karakter" class={inputCls(hasError($errors.password) ? ['e'] : undefined)} />
-					{#if $errors.password}<p class="mt-1 text-xs text-red-600">{fieldError($errors.password)}</p>{/if}
+					<Label for="create-password-input">Password *</Label>
+					<Input id="create-password-input" name="password" bind:value={$form.password} type="password" placeholder="Min. 8 karakter" class={inputCls(hasError($errors.password) ? ['e'] : undefined)} />
+					{#if $errors.password}<p class="mt-1 text-xs text-destructive">{fieldError($errors.password)}</p>{/if}
 				</div>
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 					<div>
-						<label class="block text-sm font-medium text-gray-700 mb-1">NIP</label>
-						<input name="nip" bind:value={$form.nip} type="text" class={inputCls()} />
+						<Label for="create-nip-input">NIP</Label>
+						<Input id="create-nip-input" name="nip" bind:value={$form.nip} type="text" class={inputCls()} />
 					</div>
 					<div>
-						<label class="block text-sm font-medium text-gray-700 mb-1">Jenis Kelamin</label>
-						<select name="gender" bind:value={$form.gender} class={inputCls()}>
+						<Label for="create-gender-input">Jenis Kelamin</Label>
+						<select id="create-gender-input" name="gender" bind:value={$form.gender} class={inputCls()}>
 							<option value="">— Pilih —</option>
 							<option value="L">Laki-laki</option>
 							<option value="P">Perempuan</option>
@@ -136,58 +157,58 @@
 					</div>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1">Telepon</label>
-					<input name="phone" bind:value={$form.phone} type="text" class={inputCls()} />
+					<Label for="create-phone-input">Telepon</Label>
+					<Input id="create-phone-input" name="phone" bind:value={$form.phone} type="text" class={inputCls()} />
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-					<select name="is_active" bind:value={$form.is_active} class={inputCls()}>
+					<Label for="create-status-input">Status</Label>
+					<select id="create-status-input" name="is_active" bind:value={$form.is_active} class={inputCls()}>
 						<option value={1}>Aktif</option>
 						<option value={0}>Nonaktif</option>
 					</select>
 				</div>
-				<div class="flex justify-end gap-3 pt-2">
-					<button type="button" onclick={() => (showAddModal = false)} class="px-4 py-2 text-sm text-gray-600 border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors">Batal</button>
-					<button type="submit" disabled={$submitting} class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg transition-colors">
+				<DialogFooter class="gap-2 pt-2">
+					<Button type="button" variant="outline" onclick={() => (showAddModal = false)}>Batal</Button>
+					<Button type="submit" disabled={$submitting}>
 						{$submitting ? 'Menyimpan...' : 'Simpan'}
-					</button>
-				</div>
+					</Button>
+				</DialogFooter>
 			</form>
-		</div>
-	</div>
+		</DialogContent>
+	</Dialog>
 {/if}
 
 <!-- MODAL EDIT -->
 {#if editGuru}
 	{@const g = editGuru}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-		<div class="bg-white rounded-2xl shadow-xl w-full max-w-full sm:max-w-lg p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
-			<div class="flex items-center justify-between mb-5">
-				<h2 class="text-lg font-bold text-gray-900">Edit Guru</h2>
-				<button onclick={() => (editGuru = null)} class="text-gray-400 hover:text-gray-600">✕</button>
-			</div>
+	<Dialog bind:open={showEditModal}>
+		<DialogContent class="sm:max-w-lg max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+			<DialogHeader class="flex items-center justify-between mb-5">
+				<DialogTitle class="text-lg font-bold text-foreground">Edit Guru</DialogTitle>
+				<Button variant="ghost" size="sm" class="h-6 w-6 p-0" onclick={() => (editGuru = null)}>✕</Button>
+			</DialogHeader>
 			<form method="POST" action="?/update" class="space-y-4">
 				<input type="hidden" name="id" value={g.id} />
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap *</label>
-					<input name="name" value={g.name} type="text" class={inputCls()} />
+					<Label for="edit-name-input">Nama Lengkap *</Label>
+					<Input id="edit-name-input" name="name" value={g.name} type="text" class={inputCls()} />
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-					<input name="email" value={g.email} type="email" class={inputCls()} />
+					<Label for="edit-email-input">Email *</Label>
+					<Input id="edit-email-input" name="email" value={g.email} type="email" class={inputCls()} />
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1">Password Baru <span class="text-gray-400 font-normal">(kosongkan jika tidak diubah)</span></label>
-					<input name="password" type="password" class={inputCls()} />
+					<Label for="edit-password-input">Password Baru <span class="font-normal text-muted-foreground">(kosongkan jika tidak diubah)</span></Label>
+					<Input id="edit-password-input" name="password" type="password" class={inputCls()} />
 				</div>
 				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 					<div>
-						<label class="block text-sm font-medium text-gray-700 mb-1">NIP</label>
-						<input name="nip" value={g.nip ?? ''} type="text" class={inputCls()} />
+						<Label for="edit-nip-input">NIP</Label>
+						<Input id="edit-nip-input" name="nip" value={g.nip ?? ''} type="text" class={inputCls()} />
 					</div>
 					<div>
-						<label class="block text-sm font-medium text-gray-700 mb-1">Jenis Kelamin</label>
-						<select name="gender" class={inputCls()}>
+						<Label for="edit-gender-input">Jenis Kelamin</Label>
+						<select id="edit-gender-input" name="gender" class={inputCls()}>
 							<option value="">— Pilih —</option>
 							<option value="L" selected={g.gender === 'L'}>Laki-laki</option>
 							<option value="P" selected={g.gender === 'P'}>Perempuan</option>
@@ -195,40 +216,42 @@
 					</div>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1">Telepon</label>
-					<input name="phone" value={g.phone ?? ''} type="text" class={inputCls()} />
+					<Label for="edit-phone-input">Telepon</Label>
+					<Input id="edit-phone-input" name="phone" value={g.phone ?? ''} type="text" class={inputCls()} />
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-					<select name="is_active" class={inputCls()}>
+					<Label for="edit-status-input">Status</Label>
+					<select id="edit-status-input" name="is_active" class={inputCls()}>
 						<option value={1} selected={g.is_active === 1}>Aktif</option>
 						<option value={0} selected={g.is_active === 0}>Nonaktif</option>
 					</select>
 				</div>
-				<div class="flex justify-end gap-3 pt-2">
-					<button type="button" onclick={() => (editGuru = null)} class="px-4 py-2 text-sm text-gray-600 border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors">Batal</button>
-					<button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">Simpan Perubahan</button>
-				</div>
+				<DialogFooter class="gap-2 pt-2">
+					<Button type="button" variant="outline" onclick={() => { editGuru = null; showEditModal = false; }}>Batal</Button>
+					<Button type="submit">Simpan Perubahan</Button>
+				</DialogFooter>
 			</form>
-		</div>
-	</div>
+		</DialogContent>
+	</Dialog>
 {/if}
 
 <!-- MODAL HAPUS -->
 {#if deleteTarget}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-		<div class="bg-white rounded-2xl shadow-xl w-full max-w-full sm:max-w-sm p-4 sm:p-6">
-			<h2 class="text-lg font-bold text-gray-900 mb-2">Hapus Guru?</h2>
-			<p class="text-sm text-gray-500 mb-6">
-				Akun <strong>{deleteTarget.name}</strong> akan dihapus. Tindakan ini tidak dapat dibatalkan.
-			</p>
-			<div class="flex justify-end gap-3">
-				<button onclick={() => (deleteTarget = null)} class="px-4 py-2 text-sm text-gray-600 border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors">Batal</button>
+	<Dialog bind:open={showDeleteModal}>
+		<DialogContent class="sm:max-w-sm p-4 sm:p-6">
+			<DialogHeader>
+				<DialogTitle class="text-lg font-bold text-foreground">Hapus Guru?</DialogTitle>
+				<DialogDescription class="text-sm text-muted-foreground">
+					Akun <strong>{deleteTarget.name}</strong> akan dihapus. Tindakan ini tidak dapat dibatalkan.
+				</DialogDescription>
+			</DialogHeader>
+			<DialogFooter class="gap-2 pt-2">
+				<Button variant="outline" onclick={() => { deleteTarget = null; showDeleteModal = false; }}>Batal</Button>
 				<form method="POST" action="?/delete">
 					<input type="hidden" name="id" value={deleteTarget.id} />
-					<button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors">Ya, Hapus</button>
+					<Button type="submit" variant="destructive">Ya, Hapus</Button>
 				</form>
-			</div>
-		</div>
-	</div>
+			</DialogFooter>
+		</DialogContent>
+	</Dialog>
 {/if}

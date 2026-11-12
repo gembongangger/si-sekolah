@@ -15,11 +15,11 @@
 	<title>Login — Sistem Informasi Sekolah</title>
 </svelte:head>
 
-<div class="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+<div class="min-h-screen bg-muted/50 flex items-center justify-center px-4">
 	<div class="w-full max-w-md">
 		<!-- Header -->
 		<div class="text-center mb-8">
-			<div class="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4">
+			<div class="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-2xl mb-4">
 				<svg class="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 					<path
 						stroke-linecap="round"
@@ -35,15 +35,15 @@
 					/>
 				</svg>
 			</div>
-			<h1 class="text-2xl font-bold text-gray-900">Sistem Informasi Sekolah</h1>
-			<p class="text-sm text-gray-500 mt-1">Masuk untuk melanjutkan</p>
+			<h1 class="text-2xl font-bold text-foreground">Sistem Informasi Sekolah</h1>
+			<p class="text-sm text-muted-foreground mt-1">Masuk untuk melanjutkan</p>
 		</div>
 
 		<!-- Link PPDB -->
 		<div class="mb-6 text-center">
 			<a
 				href="/ppdb"
-				class="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
+				class="inline-flex items-center gap-2 text-sm text-primary-foreground hover:text-primary-foreground font-medium transition-colors"
 			>
 				<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 					<path
@@ -58,10 +58,10 @@
 		</div>
 
 		<!-- Card -->
-		<div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 sm:p-8 w-full max-w-full sm:max-w-md">
+		<div class="bg-card rounded-2xl shadow-sm border border-border p-8 sm:p-8 w-full max-w-full sm:max-w-md">
 			<!-- Error message dari server -->
 			{#if $message}
-				<div class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+				<div class="mb-4 p-3 rounded-lg bg-destructive/10 border border-border text-destructive text-sm">
 					{$message}
 				</div>
 			{/if}
@@ -69,7 +69,7 @@
 			<form method="POST" use:enhance>
 				<!-- Email -->
 				<div class="mb-4">
-					<label for="email" class="block text-sm font-medium text-gray-700 mb-1.5">
+					<label for="email" class="block text-sm font-medium text-foreground mb-1.5">
 						Email
 					</label>
 					<input
@@ -80,19 +80,19 @@
 						bind:value={$form.email}
 						class="w-full px-3.5 py-2.5 rounded-lg border text-sm transition-colors
 							{$errors.email
-							? 'border-red-400 focus:ring-red-500 focus:border-red-500'
-							: 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'}
+							? 'border-destructive focus:ring-destructive focus:border-destructive'
+							: 'border-input focus:ring-ring focus:border-ring'}
 							focus:outline-none focus:ring-2 focus:ring-opacity-20"
 						placeholder="nama@sekolah.sch.id"
 					/>
 					{#if $errors.email}
-						<p class="mt-1 text-xs text-red-600">{$errors.email}</p>
+						<p class="mt-1 text-xs text-destructive">{$errors.email}</p>
 					{/if}
 				</div>
 
 				<!-- Password -->
 				<div class="mb-6">
-					<label for="password" class="block text-sm font-medium text-gray-700 mb-1.5">
+					<label for="password" class="block text-sm font-medium text-foreground mb-1.5">
 						Password
 					</label>
 					<input
@@ -103,13 +103,13 @@
 						bind:value={$form.password}
 						class="w-full px-3.5 py-2.5 rounded-lg border text-sm transition-colors
 							{$errors.password
-							? 'border-red-400 focus:ring-red-500 focus:border-red-500'
-							: 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'}
+							? 'border-destructive focus:ring-destructive focus:border-destructive'
+							: 'border-input focus:ring-ring focus:border-ring'}
 							focus:outline-none focus:ring-2 focus:ring-opacity-20"
 						placeholder="••••••••"
 					/>
 					{#if $errors.password}
-						<p class="mt-1 text-xs text-red-600">{$errors.password}</p>
+						<p class="mt-1 text-xs text-destructive">{$errors.password}</p>
 					{/if}
 				</div>
 
@@ -117,9 +117,9 @@
 				<button
 					type="submit"
 					disabled={$submitting}
-					class="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400
+					class="w-full py-2.5 px-4 bg-primary hover:bg-primary/90 disabled:bg-blue-400
 						text-white text-sm font-medium rounded-lg transition-colors
-						focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+						focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
 				>
 					{#if $submitting}
 						<span class="inline-flex items-center gap-2">

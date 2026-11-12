@@ -1,5 +1,7 @@
 import { redirect } from '@sveltejs/kit';
+import { eq } from 'drizzle-orm';
 import type { LayoutServerLoad } from './$types';
+import { schools } from '$lib/server/db/schema';
 
 /**
  * Guard utama: semua route di /dashboard/* WAJIB sudah login.
@@ -7,14 +9,20 @@ import type { LayoutServerLoad } from './$types';
  */
 export const load: LayoutServerLoad = async ({ locals }) => {
 	const user = locals.user;
+	const db = locals.db;
 
 	if (!user) {
 		throw redirect(302, '/login');
 	}
 
 	if (!user.isActive) {
-		// Akun nonaktif — arahkan ke halaman khusus atau login dengan pesan
 		throw redirect(302, '/login?error=inactive');
+	}
+
+	let school = null;
+	if (user.schoolId) {
+		const [s] = await db.select().from(schools).where(eq(schools.id, user.schoolId));
+		school = s ?? null;
 	}
 
 	return {
@@ -24,6 +32,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 			email: user.email,
 			role: user.role,
 			schoolId: user.schoolId
-		}
+		},
+		school
 	};
 };

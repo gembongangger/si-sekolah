@@ -28,7 +28,13 @@ export const schools = sqliteTable(
 		subscription_plan: text('subscription_plan').notNull().default('free'),
 		created_at: integer('created_at').notNull().default(sql`(unixepoch('subsec') * 1000)`),
 		updated_at: integer('updated_at').notNull().default(sql`(unixepoch('subsec') * 1000)`),
-		deleted_at: integer('deleted_at')
+		deleted_at: integer('deleted_at'),
+		primary_color: text('primary_color').notNull().default('#0f172a'),
+		secondary_color: text('secondary_color').notNull().default('#64748b'),
+		accent_success: text('accent_success').notNull().default('#10b981'),
+		accent_danger: text('accent_danger').notNull().default('#ef4444'),
+		accent_warning: text('accent_warning').notNull().default('#eab308'),
+		accent_info: text('accent_info').notNull().default('#6366f1')
 	},
 	(t): SQLiteTableExtraConfigValue[] => [
 		check('schools_is_active_check', sql`is_active IN (0, 1)`),
@@ -784,7 +790,53 @@ export const sppPayments = sqliteTable(
 );
 
 // =========================================================
-// 11. PPDB (PENERIMAAN PESERTA DIDIK BARU)
+// 11. KEUANGAN TRANSAKSI (PEMASUKAN & PENGELUARAN)
+// =========================================================
+export const keuanganTransactions = sqliteTable(
+	'keuangan_transactions',
+	(t) => ({
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		school_id: integer('school_id').notNull(),
+		academic_year_id: integer('academic_year_id').notNull(),
+		type: text('type').notNull(),
+		category: text('category').notNull().default(''),
+		amount: integer('amount').notNull(),
+		date: text('date').notNull(),
+		description: text('description').notNull().default(''),
+		reference_type: text('reference_type'),
+		reference_id: integer('reference_id'),
+		notes: text('notes'),
+		created_by: integer('created_by'),
+		created_at: integer('created_at').notNull().default(sql`(unixepoch('subsec') * 1000)`),
+		updated_at: integer('updated_at').notNull().default(sql`(unixepoch('subsec') * 1000)`),
+		deleted_at: integer('deleted_at')
+	}),
+	(t): SQLiteTableExtraConfigValue[] => [
+		index('idx_keuangan_trans_school').on(t.school_id),
+		index('idx_keuangan_trans_school_year').on(t.school_id, t.academic_year_id),
+		index('idx_keuangan_trans_deleted_at').on(t.deleted_at),
+		check('keuangan_trans_type_check', sql`type IN ('pemasukan', 'pengeluaran')`),
+		check('keuangan_trans_amount_check', sql`amount >= 0`),
+		foreignKey({
+			name: 'keuangan_trans_school_id_schools_id_fk',
+			columns: [t.school_id],
+			foreignColumns: [schools.id]
+		}).onDelete('cascade'),
+		foreignKey({
+			name: 'keuangan_trans_academic_year_id_academic_years_id_fk',
+			columns: [t.academic_year_id],
+			foreignColumns: [academicYears.id]
+		}).onDelete('cascade'),
+		foreignKey({
+			name: 'keuangan_trans_created_by_users_id_fk',
+			columns: [t.created_by],
+			foreignColumns: [users.id]
+		}).onDelete('set null')
+	]
+);
+
+// =========================================================
+// 12. PPDB (PENERIMAAN PESERTA DIDIK BARU)
 // =========================================================
 export const ppdbBatches = sqliteTable(
 	'ppdb_batches',
@@ -799,6 +851,14 @@ export const ppdbBatches = sqliteTable(
 		registration_fee: integer('registration_fee').notNull().default(0),
 		description: text('description'),
 		is_active: integer('is_active').notNull().default(1),
+		document_requirements: text('document_requirements').$type<{
+			fields: {
+				key: string;
+				label: string;
+				required: boolean;
+				formats: string[];
+			}[];
+		}>(),
 		created_at: integer('created_at').notNull().default(sql`(unixepoch('subsec') * 1000)`),
 		updated_at: integer('updated_at').notNull().default(sql`(unixepoch('subsec') * 1000)`),
 		deleted_at: integer('deleted_at')
@@ -851,6 +911,7 @@ export const ppdbRegistrations = sqliteTable(
 		selection_score: integer('selection_score'),
 		notes: text('notes'),
 		converted_student_id: integer('converted_student_id'),
+		photo_url: text('photo_url'),
 		created_at: integer('created_at').notNull().default(sql`(unixepoch('subsec') * 1000)`),
 		updated_at: integer('updated_at').notNull().default(sql`(unixepoch('subsec') * 1000)`),
 		deleted_at: integer('deleted_at')
@@ -906,6 +967,39 @@ export const ppdbTracks = sqliteTable(
 	]
 );
 
+// PPDB Registration Documents (per-document uploads)
+export const ppdbRegistrationDocuments = sqliteTable(
+	'ppdb_registration_documents',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		registration_id: integer('registration_id').notNull(),
+		document_key: text('document_key').notNull(),
+		document_label: text('document_label').notNull(),
+		url: text('url').notNull(),
+		status: text('status').notNull().default('pending'),
+		rejected_reason: text('rejected_reason'),
+		verified_by: integer('verified_by'),
+		verified_at: integer('verified_at'),
+		uploaded_at: integer('uploaded_at').notNull().default(sql`(unixepoch('subsec') * 1000)`)
+	},
+	(t): SQLiteTableExtraConfigValue[] => [
+		index('idx_ppdb_reg_docs_registration').on(t.registration_id),
+		index('idx_ppdb_reg_docs_status').on(t.status),
+		unique('ppdb_reg_docs_registration_key_unique').on(t.registration_id, t.document_key),
+		check('ppdb_reg_docs_status_check', sql`status IN ('pending', 'verified', 'rejected')`),
+		foreignKey({
+			name: 'ppdb_reg_docs_registration_id_ppdb_registrations_id_fk',
+			columns: [t.registration_id],
+			foreignColumns: [ppdbRegistrations.id]
+		}).onDelete('cascade'),
+		foreignKey({
+			name: 'ppdb_reg_docs_verified_by_users_id_fk',
+			columns: [t.verified_by],
+			foreignColumns: [users.id]
+		}).onDelete('set null')
+	]
+);
+
 // Schema gabungan untuk migrasi & query
 export const schema = {
 	schools,
@@ -929,9 +1023,11 @@ export const schema = {
 	notifications,
 	sppSettings,
 	sppPayments,
+	keuanganTransactions,
 		ppdbBatches,
 	ppdbRegistrations,
-	ppdbTracks
+	ppdbTracks,
+	ppdbRegistrationDocuments
 };
 
 export type School = typeof schools.$inferSelect;
@@ -976,9 +1072,13 @@ export type SppSetting = typeof sppSettings.$inferSelect;
 export type NewSppSetting = typeof sppSettings.$inferInsert;
 export type SppPayment = typeof sppPayments.$inferSelect;
 export type NewSppPayment = typeof sppPayments.$inferInsert;
+export type KeuanganTransaction = typeof keuanganTransactions.$inferSelect;
+export type NewKeuanganTransaction = typeof keuanganTransactions.$inferInsert;
 export type PpdbBatch = typeof ppdbBatches.$inferSelect;
 export type NewPpdbBatch = typeof ppdbBatches.$inferInsert;
 export type PpdbRegistration = typeof ppdbRegistrations.$inferSelect;
 export type NewPpdbRegistration = typeof ppdbRegistrations.$inferInsert;
 export type PpdbTrack = typeof ppdbTracks.$inferSelect;
 export type NewPpdbTrack = typeof ppdbTracks.$inferInsert;
+export type PpdbRegistrationDocument = typeof ppdbRegistrationDocuments.$inferSelect;
+export type NewPpdbRegistrationDocument = typeof ppdbRegistrationDocuments.$inferInsert;

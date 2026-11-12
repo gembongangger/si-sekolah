@@ -12,7 +12,7 @@ declare global {
 		interface Platform {
 			env: {
 				DB: D1Database;
-				EVIDENCE_BUCKET: unknown;
+				STORAGE_BUCKET: R2Bucket;
 				ENVIRONMENT: string;
 			};
 		}

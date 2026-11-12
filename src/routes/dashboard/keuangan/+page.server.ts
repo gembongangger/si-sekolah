@@ -8,7 +8,8 @@ import {
 	classes,
 	academicYears,
 	sppPayments,
-	sppSettings
+	sppSettings,
+	keuanganTransactions
 } from '$lib/server/db/schema';
 import { eq, and, sql, desc, asc, like, or, inArray } from 'drizzle-orm';
 
@@ -219,6 +220,32 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		.where(eq(students.school_id, schoolId))
 		.orderBy(asc(classes.name), asc(users.name));
 
+	// Ambil transaksi pengeluaran (penarikan dana) untuk tahun yang dipilih
+	const pengeluaranRows = await db
+		.select({
+			id: keuanganTransactions.id,
+			type: keuanganTransactions.type,
+			category: keuanganTransactions.category,
+			amount: keuanganTransactions.amount,
+			date: keuanganTransactions.date,
+			description: keuanganTransactions.description,
+			notes: keuanganTransactions.notes,
+			createdByName: sql<string>`(SELECT name FROM users WHERE id = ${keuanganTransactions.created_by})`
+		})
+		.from(keuanganTransactions)
+		.where(
+			and(
+				eq(keuanganTransactions.school_id, schoolId),
+				eq(keuanganTransactions.type, 'pengeluaran'),
+				// ponytail: filter by academic_year_id only; no month/status filter
+				selectedYearId ? eq(keuanganTransactions.academic_year_id, selectedYearId) : sql`1=1`
+			)
+		)
+		.orderBy(desc(keuanganTransactions.date), desc(keuanganTransactions.id))
+		.limit(100);
+
+	const totalPengeluaran = pengeluaranRows.reduce((acc, r) => acc + Number(r.amount), 0);
+
 	// Ringkasan statistik filter saat ini
 	const [totalPaidRow, totalAllRow] = await Promise.all([
 		db
@@ -244,6 +271,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const totalKas = Number(totalPaidRow[0]?.total ?? 0);
 	const totalKewajiban = Number(totalAllRow[0]?.total ?? 0);
 	const totalTunggakan = Math.max(0, totalKewajiban - totalKas);
+	const saldoKas = totalKas - totalPengeluaran;
 
 	return {
 		isSiswa: false,
@@ -255,11 +283,14 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		selectedYearId,
 		siswaPayments: [],
 		adminPayments: payments,
+		pengeluaran: pengeluaranRows,
 		studentOptions,
 		stats: {
 			totalKas,
 			totalKewajiban,
-			totalTunggakan
+			totalTunggakan,
+			totalPengeluaran,
+			saldoKas
 		},
 		filters: {
 			classId: classFilter,
@@ -386,5 +417,50 @@ export const actions: Actions = {
 			success: true,
 			message: 'Pembayaran berhasil dibatalkan dan status kembali menjadi belum lunas.'
 		};
+	},
+
+	/**
+	 * Catat transaksi pengeluaran / penarikan dana kas sekolah.
+	 */
+	addExpense: async ({ request, locals }) => {
+		const user = requireRole(locals.user, 'admin_keuangan', 'admin_sekolah');
+		if (user.schoolId === null) {
+			return fail(403, { message: 'Akses ditolak' });
+		}
+
+		const db = locals.db;
+		const schoolId = user.schoolId;
+		const data = await request.formData();
+
+		const date = data.get('date')?.toString();
+		const amountRaw = data.get('amount')?.toString();
+		const category = data.get('category')?.toString() || '';
+		const description = data.get('description')?.toString() || '';
+		const notes = data.get('notes')?.toString() || null;
+		const academicYearIdRaw = data.get('academic_year_id')?.toString();
+		const academicYearId = Number(academicYearIdRaw);
+
+		if (!date) return fail(400, { message: 'Tanggal wajib diisi' });
+		if (!amountRaw || isNaN(Number(amountRaw)) || Number(amountRaw) <= 0) {
+			return fail(400, { message: 'Nominal harus angka positif' });
+		}
+		if (!description.trim()) return fail(400, { message: 'Keterangan wajib diisi' });
+
+		const now = Date.now();
+		await db.insert(keuanganTransactions).values({
+			school_id: schoolId,
+			academic_year_id: academicYearId || null,
+			type: 'pengeluaran',
+			category: category || null,
+			amount: Number(amountRaw),
+			date: date,
+			description: description.trim(),
+			notes: notes,
+			created_by: user.userId,
+			created_at: now,
+			updated_at: now
+		});
+
+		return { success: true, message: 'Transaksi pengeluaran berhasil dicatat.' };
 	}
 };

@@ -1,8 +1,9 @@
 import { fail, redirect, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { schools, ppdbBatches, academicYears, ppdbRegistrations, ppdbTracks } from '$lib/server/db/schema';
+import { schools, ppdbBatches, academicYears, ppdbRegistrations, ppdbTracks, ppdbRegistrationDocuments } from '$lib/server/db/schema';
 import { eq, and, isNull, desc, count, ne } from 'drizzle-orm';
 import { ppdbRegistrationSchema, DEFAULT_PPDB_TRACKS } from '$lib/validation/ppdb';
+import { uploadFile, generateKey } from '$lib/server/services/storage';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const db = locals.db;
@@ -22,6 +23,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			quota: ppdbBatches.quota,
 			fee: ppdbBatches.registration_fee,
 			description: ppdbBatches.description,
+			documentRequirements: ppdbBatches.document_requirements,
 			academicYearName: academicYears.name,
 			academicYearSemester: academicYears.semester
 		})
@@ -93,8 +95,9 @@ function todayInTimeZone(timeZone: string): string {
 }
 
 export const actions: Actions = {
-	default: async ({ request, locals }) => {
+	default: async ({ request, locals, platform }) => {
 		const db = locals.db;
+		const bucket = platform?.env?.STORAGE_BUCKET;
 		const formData = await request.formData();
 
 		const rawData = {
@@ -138,7 +141,8 @@ export const actions: Actions = {
 				quota: ppdbBatches.quota,
 				startDate: ppdbBatches.start_date,
 				endDate: ppdbBatches.end_date,
-				timezone: schools.timezone
+				timezone: schools.timezone,
+				documentRequirements: ppdbBatches.document_requirements
 			})
 			.from(ppdbBatches)
 			.innerJoin(schools, eq(ppdbBatches.school_id, schools.id))
@@ -263,32 +267,106 @@ export const actions: Actions = {
 
 		const now = Date.now();
 
+		// Upload photo to R2 if provided
+		let photoUrl: string | null = null;
+		const photoFile = formData.get('photo') as File | null;
+		if (photoFile && photoFile.size > 0 && bucket) {
+			try {
+				const { key } = await uploadFile(bucket, 'ppdb', photoFile, data.school_id);
+				photoUrl = `/api/storage/${key}`;
+			} catch (e: unknown) {
+				console.error('Gagal upload foto pendaftar PPDB:', e);
+				return fail(400, {
+					error: 'Gagal mengunggah foto. Pastikan ukuran file < 10 MB dan format JPG/PNG/WEBP.',
+					values: rawData
+				});
+			}
+		}
+
+		// Upload documents per requirements from batch config
+		let documents: Array<{ key: string; url: string; label: string }> = [];
+		if (batch.documentRequirements) {
+			const fields = batch.documentRequirements.fields || [];
+			for (const doc of fields) {
+				const file = formData.get(`doc_${doc.key}`) as File | null;
+				if (file && file.size > 0) {
+					// Validate format
+					const allowed = doc.formats || ['jpg', 'jpeg', 'png', 'pdf'];
+					const isAllowed = allowed.some((f) => file.type === `image/${f}` || file.type === `application/pdf`);
+					if (!isAllowed) {
+						return fail(400, {
+							error: `Format ${file.name} tidak didukung. Izinkan: ${allowed.join(', ')}`,
+							values: rawData
+						});
+					}
+					if (file.size > 10 * 1024 * 1024) {
+						return fail(400, {
+							error: `Ukuran ${doc.label} maksimal 10 MB`,
+							values: rawData
+						});
+					}
+					try {
+						const { key: docKey } = await uploadFile(bucket, `ppdb-docs/${data.school_id}`, file, data.school_id);
+						documents.push({ key: doc.key, url: `/api/storage/${docKey}`, label: doc.label });
+					} catch (e: unknown) {
+						console.error('Gagal upload dokumen:', e);
+						return fail(400, {
+							error: `Gagal mengunggah ${doc.label}`,
+							values: rawData
+						});
+					}
+				} else if (doc.required) {
+					return fail(400, {
+						error: `${doc.label} wajib diupload`,
+						values: rawData
+					});
+				}
+			}
+		}
+
 		try {
-			await db.insert(ppdbRegistrations).values({
-				school_id: data.school_id,
-				batch_id: data.batch_id,
-				registration_number: registrationNumber,
-				full_name: data.full_name,
-				nisn: data.nisn || null,
-				nik: data.nik || null,
-				gender: data.gender,
-				birth_place: data.birth_place || null,
-				birth_date: data.birth_date,
-				religion: data.religion || 'Islam',
-				address: data.address,
-				phone: data.phone || null,
-				email: data.email || null,
-				previous_school: data.previous_school,
-				graduation_year: data.graduation_year || year,
-				track: data.track,
-				major_choice: data.major_choice,
-				parent_name: data.parent_name,
-				parent_phone: data.parent_phone,
-				parent_job: data.parent_job || null,
-				status: 'submitted',
-				created_at: now,
-				updated_at: now
-			});
+			const [inserted] = await db
+				.insert(ppdbRegistrations)
+				.values({
+					school_id: data.school_id,
+					batch_id: data.batch_id,
+					registration_number: registrationNumber,
+					full_name: data.full_name,
+					nisn: data.nisn || null,
+					nik: data.nik || null,
+					gender: data.gender,
+					birth_place: data.birth_place || null,
+					birth_date: data.birth_date,
+					religion: data.religion || 'Islam',
+					address: data.address,
+					phone: data.phone || null,
+					email: data.email || null,
+					previous_school: data.previous_school,
+					graduation_year: data.graduation_year || year,
+					track: data.track,
+					major_choice: data.major_choice,
+					parent_name: data.parent_name,
+					parent_phone: data.parent_phone,
+					parent_job: data.parent_job || null,
+					photo_url: photoUrl,
+					status: 'submitted',
+					created_at: now,
+					updated_at: now
+				})
+				.returning({ id: ppdbRegistrations.id });
+
+			// Simpan dokumen yang diupload
+			if (documents.length > 0 && inserted) {
+				await db.insert(ppdbRegistrationDocuments).values(
+					documents.map((doc) => ({
+						registration_id: inserted.id,
+						document_key: doc.key,
+						document_label: doc.label,
+						url: doc.url,
+						status: 'pending'
+					}))
+				);
+			}
 		} catch (e: any) {
 			console.error('Error saving PPDB registration:', e);
 			return fail(500, {

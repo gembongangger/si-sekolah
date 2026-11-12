@@ -7,7 +7,7 @@
 		return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
 	}
 
-	let activeReportTab = $state<'kelas' | 'tunggakan' | 'kas'>('kelas');
+	let activeReportTab = $state<'kelas' | 'tunggakan' | 'kas' | 'pengeluaran'>('kelas');
 
 	function printReport() {
 		window.print();
@@ -24,7 +24,7 @@
 		<div>
 			<h1 class="text-2xl font-bold text-gray-900">Laporan & Rekapitulasi Keuangan SPP</h1>
 			<p class="text-sm text-gray-500 mt-1">
-				Rekapitulasi penerimaan kas, kelunasan per kelas, dan daftar tunggakan siswa
+				Rekapitulasi pemasukan, pengeluaran, kelunasan per kelas, dan daftar tunggakan siswa
 			</p>
 		</div>
 		<div class="flex items-center gap-3">
@@ -86,10 +86,18 @@
 				{/each}
 			</select>
 		</form>
-		<div class="flex items-center gap-6 text-xs text-gray-500">
+		<div class="flex items-center flex-wrap gap-6 text-xs text-gray-500">
 			<div>
 				<span>Kas Masuk:</span>
 				<strong class="text-emerald-600 text-sm ml-1">{formatRupiah(data.grandTotal.totalDibayar)}</strong>
+			</div>
+			<div>
+				<span>Pengeluaran:</span>
+				<strong class="text-destructive text-sm ml-1">{formatRupiah(data.totalPengeluaran ?? 0)}</strong>
+			</div>
+			<div>
+				<span>Saldo Kas:</span>
+				<strong class="text-foreground text-sm ml-1">{formatRupiah((data.grandTotal.totalDibayar ?? 0) - (data.totalPengeluaran ?? 0))}</strong>
 			</div>
 			<div>
 				<span>Tunggakan:</span>
@@ -128,6 +136,14 @@
 		>
 			💰 Jurnal Penerimaan Kas ({data.cashReceipts.length})
 		</button>
+		<button
+			onclick={() => (activeReportTab = 'pengeluaran')}
+			class="px-4 py-2 text-sm font-medium rounded-lg transition-colors {activeReportTab === 'pengeluaran'
+				? 'bg-destructive/10 text-destructive font-semibold'
+				: 'text-muted-foreground hover:bg-muted'}"
+		>
+			📤 Jurnal Pengeluaran ({data.expenseRows?.length ?? 0})
+		</button>
 	</div>
 
 	<!-- AREA LAPORAN SIAP CETAK -->
@@ -147,6 +163,10 @@
 					LAPORAN REKAPITULASI PEMBAYARAN SPP PER KELAS
 				{:else if activeReportTab === 'tunggakan'}
 					LAPORAN DAFTAR TUNGGAKAN SPP SISWA
+				{:else if activeReportTab === 'kas'}
+					BUKU KAS PENERIMAAN PEMBAYARAN SPP
+				{:else if activeReportTab === 'pengeluaran'}
+					BUKU KAS PENGELUARAN / PENARIKAN DANA
 				{:else}
 					BUKU KAS PENERIMAAN PEMBAYARAN SPP
 				{/if}
@@ -303,6 +323,61 @@
 					</table>
 				</div>
 			</div>
+		{:else if activeReportTab === 'pengeluaran'}
+			<div class="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
+				<div class="px-6 py-4 border-b border-border bg-muted/50 flex items-center justify-between no-print">
+					<h2 class="text-base font-semibold text-foreground">Buku Kas Pengeluaran / Penarikan Dana</h2>
+					<span class="text-xs text-destructive font-medium">{data.expenseRows?.length ?? 0} Transaksi Tercatat</span>
+				</div>
+				<div class="overflow-x-auto">
+					<table class="w-full text-left text-sm text-muted-foreground">
+						<thead class="bg-muted/50 text-xs uppercase font-semibold text-muted-foreground border-b border-border">
+							<tr>
+								<th class="px-6 py-3">Tanggal</th>
+								<th class="px-6 py-3">Kategori</th>
+								<th class="px-6 py-3">Keterangan</th>
+								<th class="px-6 py-3">Catatan</th>
+								<th class="px-6 py-3">Petugas</th>
+								<th class="px-6 py-3 text-right">Nominal</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-border">
+							{#if (data.expenseRows?.length ?? 0) > 0}
+								{#each data.expenseRows as tx}
+									<tr class="hover:bg-muted/50">
+										<td class="px-6 py-4 text-xs font-medium text-foreground">{tx.date}</td>
+										<td class="px-6 py-4">
+											<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-destructive/10 text-destructive">
+												{tx.category || 'Umum'}
+											</span>
+										</td>
+										<td class="px-6 py-4 font-medium text-foreground">{tx.description}</td>
+										<td class="px-6 py-4 text-xs text-muted-foreground">{tx.notes ?? '-'}</td>
+										<td class="px-6 py-4 text-xs">{tx.createdByName ?? 'Admin'}</td>
+										<td class="px-6 py-4 text-right font-bold text-destructive">
+											−{formatRupiah(tx.amount)}
+										</td>
+									</tr>
+								{/each}
+							{:else}
+								<tr>
+									<td colspan="6" class="px-6 py-10 text-center text-muted-foreground text-sm">
+										Belum ada catatan pengeluaran.
+									</td>
+								</tr>
+							{/if}
+						</tbody>
+						<tfoot class="bg-muted font-bold border-t-2 border-input text-foreground">
+							<tr>
+								<td colspan="5" class="px-6 py-3 text-right uppercase tracking-wider">Total Pengeluaran:</td>
+								<td class="px-6 py-3 text-right text-destructive">
+									−{formatRupiah(data.totalPengeluaran ?? 0)}
+								</td>
+						</tr>
+						</tfoot>
+				</table>
+			</div>
+		</div>
 		{/if}
 
 		<!-- Lembar Tanda Tangan Cetak (Muncul saat print) -->

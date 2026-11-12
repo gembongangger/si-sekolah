@@ -1,5 +1,8 @@
 node_modules
 
+# npm lockfile (proyek ini pakai bun)
+package-lock.json
+
 # Output
 .output
 .vercel
@@ -28,3 +31,11 @@ drizzle/local.db
 deepseek_*.txt
 deepseek_*.ts
 deepseek_*.tsx
+
+# Kredensial & catatan lokal (jangan di-commit)
+kredential.md
+manual-kredential.md
+session.txt
+lanjutkan.txt
+*credential*.md
+
