@@ -1,4 +1,10 @@
 <script lang="ts">
+	import PlusIcon from '@lucide/svelte/icons/plus';
+	import PencilIcon from '@lucide/svelte/icons/pencil';
+	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { Pagination } from '$lib/components/ui/pagination/index.js';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import type { PageData, ActionData } from './$types';
@@ -35,6 +41,55 @@
 	let trackDescription = $state('');
 	let trackIsActive = $state(1);
 
+	// ── Pagination & Column Filters ──────────────────────────────
+	let page = $state(1);
+	let pageSize = $state(10);
+	let filterRegNo = $state('');
+	let filterName = $state('');
+	let filterTrack = $state('');
+	let filterSchool = $state('');
+	let filterStatus = $state('');
+
+	let hasActiveFilter = $derived(
+		Boolean(filterRegNo || filterName || filterTrack || filterSchool || filterStatus)
+	);
+
+	function resetFilters() {
+		filterRegNo = '';
+		filterName = '';
+		filterTrack = '';
+		filterSchool = '';
+		filterStatus = '';
+		page = 1;
+	}
+
+	let filteredRegistrations = $derived(
+		data.registrations.filter((r) => {
+			if (filterRegNo && !(r.registrationNumber ?? '').toLowerCase().includes(filterRegNo.toLowerCase())) {
+				return false;
+			}
+			if (filterName) {
+				const full = `${r.fullName ?? ''} ${r.nisn ?? ''}`.toLowerCase();
+				if (!full.includes(filterName.toLowerCase())) return false;
+			}
+			if (filterTrack) {
+				const full = `${r.track ?? ''} ${trackLabel[r.track] ?? ''} ${r.majorChoice ?? ''} ${r.batchName ?? ''}`.toLowerCase();
+				if (!full.includes(filterTrack.toLowerCase())) return false;
+			}
+			if (filterSchool && !(r.previousSchool ?? '').toLowerCase().includes(filterSchool.toLowerCase())) {
+				return false;
+			}
+			if (filterStatus && r.status !== filterStatus) {
+				return false;
+			}
+			return true;
+		})
+	);
+
+	let paginatedRegistrations = $derived(
+		filteredRegistrations.slice((page - 1) * pageSize, page * pageSize)
+	);
+
 	// ── Edit batch (periode) states ──────────────────────────────
 	let showBatchEditModal = $state(false);
 	let copiedPublic = $state(false);
@@ -61,14 +116,79 @@
 	let editBatchFee = $state<number | string>('');
 	let editBatchDescription = $state('');
 	let editBatchIsActive = $state(1);
-	let editBatchDocReq = $state('');
+	type DocField = { key: string; label: string; required: boolean; formats: string[] };
+	const DOC_FORMATS = ['jpg', 'png', 'pdf', 'webp'];
+	let editBatchDocs = $state<DocField[]>([]);
+	let createBatchDocs = $state<DocField[]>([]);
+	let copyFromBatchId = $state('');
+
+	const DOC_TEMPLATES: DocField[] = [
+		{ key: 'kk', label: 'Kartu Keluarga', required: true, formats: ['jpg', 'png', 'pdf'] },
+		{ key: 'akta', label: 'Akta Kelahiran', required: true, formats: ['jpg', 'png', 'pdf'] },
+		{ key: 'ijazah', label: 'Ijazah / SKL', required: true, formats: ['jpg', 'png', 'pdf'] },
+		{ key: 'foto', label: 'Pas Foto', required: true, formats: ['jpg', 'png'] }
+	];
+
+	function slugifyKey(s: string) {
+		return s
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, '_')
+			.replace(/^_+|_+$/g, '')
+			.slice(0, 30);
+	}
+
+	function addDocField(arr: DocField[]) {
+		arr.push({ key: '', label: '', required: true, formats: ['jpg', 'png', 'pdf'] });
+	}
+
+	function onDocLabelInput(f: DocField) {
+		if (!f.key || f.key === slugifyKey(f.label.slice(0, -1))) f.key = slugifyKey(f.label);
+	}
+
+	function toggleDocFormat(f: DocField, fmt: string) {
+		f.formats = f.formats.includes(fmt) ? f.formats.filter((x) => x !== fmt) : [...f.formats, fmt];
+	}
+
+	function applyTemplate(target: 'edit' | 'create') {
+		const clone = DOC_TEMPLATES.map((d) => ({ ...d, formats: [...d.formats] }));
+		if (target === 'edit') editBatchDocs = clone;
+		else createBatchDocs = clone;
+	}
+
+	function copyDocs(target: 'edit' | 'create', batchId: number | string) {
+		const b = data.batches.find((x) => x.id === Number(batchId));
+		const fields = (b?.documentRequirements as any)?.fields ?? [];
+		const clone = fields.map((f: any) => ({
+			key: String(f.key ?? ''),
+			label: String(f.label ?? f.key ?? ''),
+			required: f.required !== false,
+			formats: Array.isArray(f.formats) && f.formats.length ? f.formats.map(String) : ['jpg', 'png', 'pdf']
+		}));
+		if (target === 'edit') editBatchDocs = clone;
+		else createBatchDocs = clone;
+	}
+
+	function docsJson(arr: DocField[]): string {
+		return JSON.stringify(
+			arr
+				.map((f) => {
+					const label = f.label.trim() || f.key.trim();
+					const key = (f.key.trim() || label)
+						.toLowerCase()
+						.replace(/[^a-z0-9]+/g, '_')
+						.replace(/^_+|_+$/g, '');
+					return { key, label: label || key, required: f.required, formats: f.formats.length ? f.formats : ['jpg', 'png', 'pdf'] };
+				})
+				.filter((f) => f.key && f.label)
+		);
+	}
 
 	const statusBadge: Record<string, string> = {
 		submitted: 'bg-muted text-foreground border-border',
 		verified: 'bg-warning/10 text-warning-foreground border-warning/20',
 		accepted: 'bg-success/10 text-success-foreground border-success/20',
 		rejected: 'bg-destructive/10 text-destructive border-border',
-		enrolled: 'bg-primary/10 text-primary-foreground border-border'
+		enrolled: 'bg-primary/10 text-primary border-border'
 	};
 
 	const statusLabel: Record<string, string> = {
@@ -153,6 +273,8 @@
 	}
 
 	function resetBatchModal() {
+		createBatchDocs = [];
+		copyFromBatchId = '';
 		showBatchModal = false;
 	}
 
@@ -189,7 +311,8 @@
 		editBatchFee = '';
 		editBatchDescription = '';
 		editBatchIsActive = 1;
-		editBatchDocReq = '';
+		editBatchDocs = [];
+		copyFromBatchId = '';
 		showBatchEditModal = false;
 	}
 
@@ -203,9 +326,12 @@
 		editBatchFee = String(b.fee);
 		editBatchDescription = b.description ?? '';
 		editBatchIsActive = b.isActive;
-		editBatchDocReq = b.documentRequirements?.fields
-			? JSON.stringify(b.documentRequirements.fields, null, 2)
-			: '';
+		editBatchDocs = (b.documentRequirements?.fields ?? []).map((f: any) => ({
+			key: String(f.key ?? ''),
+			label: String(f.label ?? f.key ?? ''),
+			required: f.required !== false,
+			formats: Array.isArray(f.formats) && f.formats.length ? f.formats.map(String) : ['jpg', 'png', 'pdf']
+		}));
 		showBatchEditModal = true;
 	}
 </script>
@@ -266,8 +392,8 @@
 			<p class="text-2xl font-bold text-success-foreground mt-1">{data.stats.accepted}</p>
 		</div>
 		<div class="bg-card rounded-xl border border-border p-4">
-			<p class="text-[11px] font-semibold uppercase tracking-wider text-primary-foreground">Siswa Aktif</p>
-			<p class="text-2xl font-bold text-primary-foreground mt-1">{data.stats.enrolled}</p>
+			<p class="text-[11px] font-semibold uppercase tracking-wider text-primary">Siswa Aktif</p>
+			<p class="text-2xl font-bold text-primary mt-1">{data.stats.enrolled}</p>
 		</div>
 	</div>
 
@@ -283,7 +409,7 @@
 				onclick={() => (showBatchModal = true)}
 				class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold rounded-xl transition-colors"
 			>
-				＋ Buat Gelombang
+				<PlusIcon class="w-4 h-4" /> Buat Gelombang
 			</button>
 		</div>
 
@@ -317,7 +443,7 @@
 									● Pendaftaran Dibuka
 								</span>
 							{:else if b.periodStatus === 'upcoming'}
-								<span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/10 text-primary-foreground border border-border">
+								<span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/10 text-primary border border-border">
 									○ Belum Dibuka
 								</span>
 							{:else}
@@ -332,7 +458,7 @@
 								</div>
 								<div class="bg-muted/50 rounded-lg p-2 text-center">
 									<p class="text-[10px] text-muted-foreground">Pendaftar</p>
-									<p class="text-sm font-bold text-primary-foreground">{b.totalRegistrants}</p>
+									<p class="text-sm font-bold text-foreground">{b.totalRegistrants}</p>
 								</div>
 								<div class="bg-muted/50 rounded-lg p-2 text-center">
 									<p class="text-[10px] text-muted-foreground">Biaya</p>
@@ -366,18 +492,18 @@
 							<button
 								type="button"
 								onclick={() => openBatchEdit(b)}
-								class="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-primary/10 text-primary-foreground border border-border hover:bg-primary/20"
+								class="inline-flex items-center justify-center px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-primary/10 text-primary border border-border hover:bg-primary/20"
 								title="Edit gelombang"
 							>
-								✎
+								<PencilIcon class="w-3.5 h-3.5" />
 							</button>
 							<button
 								type="button"
 								onclick={() => openDelete(b)}
-								class="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-destructive/10 text-destructive border border-border hover:bg-destructive/10"
+								class="inline-flex items-center justify-center px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-destructive/10 text-destructive border border-border hover:bg-destructive/10"
 								title="Hapus gelombang"
 							>
-								🗑
+								<Trash2Icon class="w-3.5 h-3.5" />
 							</button>
 						</div>
 					</div>
@@ -400,7 +526,7 @@
 				onclick={openTrackCreate}
 				class="inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold rounded-xl transition-colors"
 			>
-				＋ Tambah Jalur
+				<PlusIcon class="w-4 h-4" /> Tambah Jalur
 			</button>
 		</div>
 
@@ -430,9 +556,9 @@
 							<button
 								type="button"
 								onclick={() => openTrackEdit(t)}
-								class="flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg border border-border text-primary-foreground hover:bg-primary/10"
+								class="inline-flex items-center justify-center gap-1 flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg border border-input text-primary hover:bg-accent"
 							>
-								✎ Edit
+								<PencilIcon class="w-3.5 h-3.5" /> Edit
 							</button>
 							<form
 								method="POST"
@@ -453,10 +579,10 @@
 							<button
 								type="button"
 								onclick={() => openDelete({ id: t.id, name: t.name }, 'track')}
-								class="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-destructive/10 text-destructive border border-border hover:bg-destructive/10"
+								class="inline-flex items-center justify-center px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-destructive/10 text-destructive border border-border hover:bg-destructive/10"
 								title="Hapus jalur"
 							>
-								🗑
+								<Trash2Icon class="w-3.5 h-3.5" />
 							</button>
 						</div>
 					</div>
@@ -562,80 +688,154 @@
 							<th class="px-4 py-3 font-semibold">Status</th>
 							<th class="px-4 py-3 font-semibold text-right">Aksi</th>
 						</tr>
+						<tr class="bg-muted/30 lowercase tracking-normal font-normal">
+							<th class="px-4 py-2">
+								<Input
+									placeholder="No. reg..."
+									bind:value={filterRegNo}
+									oninput={() => (page = 1)}
+									class="h-8 text-xs bg-background"
+								/>
+							</th>
+							<th class="px-4 py-2">
+								<Input
+									placeholder="Nama / NISN..."
+									bind:value={filterName}
+									oninput={() => (page = 1)}
+									class="h-8 text-xs bg-background"
+								/>
+							</th>
+							<th class="px-4 py-2">
+								<Input
+									placeholder="Jalur / jurusan..."
+									bind:value={filterTrack}
+									oninput={() => (page = 1)}
+									class="h-8 text-xs bg-background"
+								/>
+							</th>
+							<th class="px-4 py-2">
+								<Input
+									placeholder="Asal sekolah..."
+									bind:value={filterSchool}
+									oninput={() => (page = 1)}
+									class="h-8 text-xs bg-background"
+								/>
+							</th>
+							<th class="px-4 py-2"></th>
+							<th class="px-4 py-2">
+								<select
+									bind:value={filterStatus}
+									onchange={() => (page = 1)}
+									class="w-full h-8 px-2 bg-background border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+								>
+									<option value="">Semua</option>
+									<option value="draft">Draft</option>
+									<option value="submitted">Menunggu</option>
+									<option value="verified">Terverifikasi</option>
+									<option value="accepted">Lulus</option>
+									<option value="rejected">Tidak Lulus</option>
+									<option value="enrolled">Siswa Aktif</option>
+								</select>
+							</th>
+							<th class="px-4 py-2 text-right">
+								{#if hasActiveFilter}
+									<button
+										type="button"
+										onclick={resetFilters}
+										class="inline-flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
+										title="Reset Filter"
+									>
+										<RotateCcw class="w-3.5 h-3.5" />
+										<span>Reset</span>
+									</button>
+								{/if}
+							</th>
+						</tr>
 					</thead>
 					<tbody class="divide-y divide-border">
-						{#each data.registrations as r (r.id)}
-							<tr class="hover:bg-muted/50/70">
-								<td class="px-4 py-3">
-									<p class="font-mono text-xs font-semibold text-foreground">{r.registrationNumber}</p>
-									<p class="text-[11px] text-muted-foreground mt-0.5">{formatDateTime(r.createdAt)}</p>
-								</td>
-								<td class="px-4 py-3">
-									<p class="font-semibold text-foreground">{r.fullName}</p>
-									<p class="text-[11px] text-muted-foreground">{r.nisn || 'NISN -'}</p>
-									<p class="text-[11px] text-muted-foreground">{r.gender === 'L' ? 'Laki-laki' : 'Perempuan'}</p>
-								</td>
-								<td class="px-4 py-3">
-									<p class="text-xs font-medium text-foreground">{trackLabel[r.track] ?? r.track}</p>
-									<p class="text-[11px] text-muted-foreground">{r.majorChoice}</p>
-									<p class="text-[11px] text-muted-foreground truncate max-w-[140px]">{r.batchName ?? '-'}</p>
-								</td>
-								<td class="px-4 py-3">
-									<p class="text-xs text-foreground max-w-[160px] truncate">{r.previousSchool}</p>
-									<p class="text-[11px] text-muted-foreground">Lulus {r.graduationYear ?? '-'}</p>
-								</td>
-								<td class="px-4 py-3">
-									{#if r.selectionScore != null}
-										<span class="text-sm font-bold text-foreground">{r.selectionScore}</span>
-									{:else}
-										<span class="text-xs text-muted-foreground">-</span>
-									{/if}
-								</td>
-								<td class="px-4 py-3">
-									<span
-										class="inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold border {statusBadge[
-											r.status
-										] ?? 'bg-muted text-muted-foreground border-border'}"
-									>
-										{statusLabel[r.status] ?? r.status}
-									</span>
-									{#if r.status === 'enrolled' && r.enrolledClassName}
-										<p class="text-[10px] text-primary-foreground mt-1">{r.enrolledClassName}</p>
-									{/if}
-								</td>
-								<td class="px-4 py-3">
-									<div class="flex items-center justify-end gap-1.5">
-										<button
-											type="button"
-											onclick={() => openDetail(r)}
-											class="px-2 py-1 text-[11px] font-semibold rounded-md bg-muted text-foreground hover:bg-muted"
-										>
-											Detail
-										</button>
-										{#if r.status !== 'enrolled'}
-											<button
-												type="button"
-												onclick={() => openStatus(r)}
-												class="px-2 py-1 text-[11px] font-semibold rounded-md bg-primary/10 text-primary-foreground hover:bg-primary/20"
-											>
-												Ubah Status
-											</button>
-										{/if}
-										{#if r.status === 'accepted' && !r.convertedStudentId}
-											<button
-												type="button"
-												onclick={() => openConvert(r)}
-												class="px-2 py-1 text-[11px] font-semibold rounded-md bg-success text-success-foreground hover:bg-success/90"
-											>
-												Jadikan Siswa
-											</button>
-										{/if}
-									</div>
+						{#if paginatedRegistrations.length === 0}
+							<tr>
+								<td colspan="7" class="py-12 text-center text-muted-foreground text-sm">
+									Tidak ada data yang sesuai filter.
 								</td>
 							</tr>
-						{/each}
+						{:else}
+							{#each paginatedRegistrations as r (r.id)}
+								<tr class="hover:bg-muted/50/70">
+									<td class="px-4 py-3">
+										<p class="font-mono text-xs font-semibold text-foreground">{r.registrationNumber}</p>
+										<p class="text-[11px] text-muted-foreground mt-0.5">{formatDateTime(r.createdAt)}</p>
+									</td>
+									<td class="px-4 py-3">
+										<p class="font-semibold text-foreground">{r.fullName}</p>
+										<p class="text-[11px] text-muted-foreground">{r.nisn || 'NISN -'}</p>
+										<p class="text-[11px] text-muted-foreground">{r.gender === 'L' ? 'Laki-laki' : 'Perempuan'}</p>
+									</td>
+									<td class="px-4 py-3">
+										<p class="text-xs font-medium text-foreground">{trackLabel[r.track] ?? r.track}</p>
+										<p class="text-[11px] text-muted-foreground">{r.majorChoice}</p>
+										<p class="text-[11px] text-muted-foreground truncate max-w-[140px]">{r.batchName ?? '-'}</p>
+									</td>
+									<td class="px-4 py-3">
+										<p class="text-xs text-foreground max-w-[160px] truncate">{r.previousSchool}</p>
+										<p class="text-[11px] text-muted-foreground">Lulus {r.graduationYear ?? '-'}</p>
+									</td>
+									<td class="px-4 py-3">
+										{#if r.selectionScore != null}
+											<span class="text-sm font-bold text-foreground">{r.selectionScore}</span>
+										{:else}
+											<span class="text-xs text-muted-foreground">-</span>
+										{/if}
+									</td>
+									<td class="px-4 py-3">
+										<span
+											class="inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold border {statusBadge[
+												r.status
+											] ?? 'bg-muted text-muted-foreground border-border'}"
+										>
+											{statusLabel[r.status] ?? r.status}
+										</span>
+										{#if r.status === 'enrolled' && r.enrolledClassName}
+											<p class="text-[10px] text-primary mt-1">{r.enrolledClassName}</p>
+										{/if}
+									</td>
+									<td class="px-4 py-3">
+										<div class="flex items-center justify-end gap-1.5">
+											<button
+												type="button"
+												onclick={() => openDetail(r)}
+												class="px-2 py-1 text-[11px] font-semibold rounded-md bg-muted text-foreground hover:bg-muted"
+											>
+												Detail
+											</button>
+											{#if r.status !== 'enrolled'}
+												<button
+													type="button"
+													onclick={() => openStatus(r)}
+													class="px-2 py-1 text-[11px] font-semibold rounded-md bg-primary/10 text-primary hover:bg-primary/20"
+												>
+													Ubah Status
+												</button>
+											{/if}
+											{#if r.status === 'accepted' && !r.convertedStudentId}
+												<button
+													type="button"
+													onclick={() => openConvert(r)}
+													class="px-2 py-1 text-[11px] font-semibold rounded-md bg-success text-success-foreground hover:bg-success/90"
+												>
+													Jadikan Siswa
+												</button>
+											{/if}
+										</div>
+									</td>
+								</tr>
+							{/each}
+						{/if}
 					</tbody>
 				</table>
+			</div>
+			<div class="p-4 border-t border-border">
+				<Pagination bind:page bind:pageSize totalItems={filteredRegistrations.length} />
 			</div>
 		{/if}
 	</div>
@@ -688,9 +888,55 @@
 					<textarea id="edit-batch-desc" name="description" rows="2" class="w-full px-3 py-2.5 bg-muted/50 border border-border rounded-lg text-sm focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring">{editBatchDescription}</textarea>
 				</div>
 				<div class="mt-3">
-					<label for="edit-batch-docreq" class="block text-xs font-semibold text-foreground mb-1.5">Persyaratan Dokumen</label>
-					<p class="text-[10px] text-muted-foreground mb-2">Array JSON field persyaratan: key, label, required, formats.</p>
-					<textarea id="edit-batch-docreq" name="document_requirements" rows="4" class="w-full px-3 py-3 bg-muted/50 border border-border rounded-lg text-sm font-mono focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Contoh: key, label, required, formats (array JSON)">{editBatchDocReq}</textarea>
+				<div>
+					<div class="flex items-center justify-between gap-2 mb-1.5">
+						<label class="block text-xs font-semibold text-foreground">Persyaratan Dokumen</label>
+						<div class="flex items-center gap-1.5">
+							<button type="button" onclick={() => applyTemplate('edit')} class="text-[10px] font-semibold px-2 py-1 rounded border border-border bg-background hover:bg-muted">Pakai template</button>
+							{#if data.batches.filter((x) => x.id !== Number(editBatchId) && (x.documentRequirements as any)?.fields?.length).length}
+								<select
+									class="text-[10px] px-1.5 py-1 rounded border border-border bg-background"
+									bind:value={copyFromBatchId}
+									onchange={() => { if (copyFromBatchId) copyDocs('edit', copyFromBatchId); copyFromBatchId = ''; }}
+								>
+									<option value="">Salin dari…</option>
+									{#each data.batches.filter((x) => x.id !== Number(editBatchId) && (x.documentRequirements as any)?.fields?.length) as ob (ob.id)}
+										<option value={ob.id}>{ob.name}</option>
+									{/each}
+								</select>
+							{/if}
+						</div>
+					</div>
+					<p class="text-[10px] text-muted-foreground mb-2">Dokumen yang wajib/opsional diunggah pendaftar. Kode otomatis dari nama (bisa diubah).</p>
+					<div class="space-y-2">
+						{#each editBatchDocs as f, i}
+							<div class="grid grid-cols-1 sm:grid-cols-[1.3fr_1fr_auto] gap-2 bg-muted/40 border border-border rounded-lg p-2.5">
+								<div class="space-y-1.5">
+									<input bind:value={f.label} oninput={() => onDocLabelInput(f)} placeholder="Nama dokumen, mis. Kartu Keluarga" class="w-full px-2.5 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+									<input bind:value={f.key} placeholder="kode (mis. kk)" class="w-full px-2.5 py-1.5 bg-background border border-border rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-ring" />
+								</div>
+								<div class="flex flex-wrap items-center gap-x-2 gap-y-1 content-start">
+									{#each DOC_FORMATS as fmt}
+										<label class="inline-flex items-center gap-1 text-xs text-foreground">
+											<input type="checkbox" checked={f.formats.includes(fmt)} onchange={() => toggleDocFormat(f, fmt)} class="w-3.5 h-3.5 rounded border-input" />
+											{fmt}
+										</label>
+									{/each}
+									<label class="inline-flex items-center gap-1 text-xs font-semibold text-foreground">
+										<input type="checkbox" bind:checked={f.required} class="w-3.5 h-3.5 rounded border-input" />
+										Wajib
+									</label>
+								</div>
+								<button type="button" onclick={() => editBatchDocs.splice(i, 1)} class="self-start text-xs font-semibold text-destructive hover:bg-destructive/10 px-2 py-1 rounded">Hapus</button>
+							</div>
+						{/each}
+						{#if !editBatchDocs.length}
+							<p class="text-[10px] text-muted-foreground italic">Belum ada syarat. Pendaftar hanya diminta foto.</p>
+						{/if}
+						<button type="button" onclick={() => addDocField(editBatchDocs)} class="text-xs font-semibold text-primary hover:bg-accent px-3 py-2 rounded-lg border border-dashed border-input w-full">+ Tambah Dokumen</button>
+					</div>
+					<input type="hidden" name="document_requirements" value={docsJson(editBatchDocs)} />
+				</div>
 				</div>
 				<div class="flex items-center gap-2">
 					<input id="edit-batch-active" name="is_active" type="checkbox" value="1" checked={editBatchIsActive === 1} class="w-4 h-4 rounded text-primary-foreground border-input" />
@@ -757,6 +1003,55 @@
 				<div>
 					<label for="batch-desc" class="block text-xs font-semibold text-foreground mb-1.5">Deskripsi</label>
 					<textarea id="batch-desc" name="description" rows="2" class="w-full px-3 py-2.5 bg-muted/50 border border-border rounded-lg text-sm focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"></textarea>
+				</div>
+				<div>
+					<div class="flex items-center justify-between gap-2 mb-1.5">
+						<label class="block text-xs font-semibold text-foreground">Persyaratan Dokumen</label>
+						<div class="flex items-center gap-1.5">
+							<button type="button" onclick={() => applyTemplate('create')} class="text-[10px] font-semibold px-2 py-1 rounded border border-border bg-background hover:bg-muted">Pakai template</button>
+							{#if data.batches.filter((x) => (x.documentRequirements as any)?.fields?.length).length}
+								<select
+									class="text-[10px] px-1.5 py-1 rounded border border-border bg-background"
+									bind:value={copyFromBatchId}
+									onchange={() => { if (copyFromBatchId) copyDocs('create', copyFromBatchId); copyFromBatchId = ''; }}
+								>
+									<option value="">Salin dari…</option>
+									{#each data.batches.filter((x) => (x.documentRequirements as any)?.fields?.length) as ob (ob.id)}
+										<option value={ob.id}>{ob.name}</option>
+									{/each}
+								</select>
+							{/if}
+						</div>
+					</div>
+					<p class="text-[10px] text-muted-foreground mb-2">Dokumen yang wajib/opsional diunggah pendaftar. Kode otomatis dari nama (bisa diubah).</p>
+					<div class="space-y-2">
+						{#each createBatchDocs as f, i}
+							<div class="grid grid-cols-1 sm:grid-cols-[1.3fr_1fr_auto] gap-2 bg-muted/40 border border-border rounded-lg p-2.5">
+								<div class="space-y-1.5">
+									<input bind:value={f.label} oninput={() => onDocLabelInput(f)} placeholder="Nama dokumen, mis. Kartu Keluarga" class="w-full px-2.5 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+									<input bind:value={f.key} placeholder="kode (mis. kk)" class="w-full px-2.5 py-1.5 bg-background border border-border rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-ring" />
+								</div>
+								<div class="flex flex-wrap items-center gap-x-2 gap-y-1 content-start">
+									{#each DOC_FORMATS as fmt}
+										<label class="inline-flex items-center gap-1 text-xs text-foreground">
+											<input type="checkbox" checked={f.formats.includes(fmt)} onchange={() => toggleDocFormat(f, fmt)} class="w-3.5 h-3.5 rounded border-input" />
+											{fmt}
+										</label>
+									{/each}
+									<label class="inline-flex items-center gap-1 text-xs font-semibold text-foreground">
+										<input type="checkbox" bind:checked={f.required} class="w-3.5 h-3.5 rounded border-input" />
+										Wajib
+									</label>
+								</div>
+								<button type="button" onclick={() => createBatchDocs.splice(i, 1)} class="self-start text-xs font-semibold text-destructive hover:bg-destructive/10 px-2 py-1 rounded">Hapus</button>
+							</div>
+						{/each}
+						{#if !createBatchDocs.length}
+							<p class="text-[10px] text-muted-foreground italic">Belum ada syarat. Pendaftar hanya diminta foto.</p>
+						{/if}
+						<button type="button" onclick={() => addDocField(createBatchDocs)} class="text-xs font-semibold text-primary hover:bg-accent px-3 py-2 rounded-lg border border-dashed border-input w-full">+ Tambah Dokumen</button>
+					</div>
+					<input type="hidden" name="document_requirements" value={docsJson(createBatchDocs)} />
 				</div>
 				<div class="flex items-center gap-2">
 					<input id="batch-active" name="is_active" type="checkbox" value="1" checked class="w-4 h-4 rounded text-primary-foreground border-input" />
@@ -960,7 +1255,7 @@
 							<span class="text-xs text-muted-foreground">Nilai seleksi: <strong>{selectedReg.selectionScore}</strong></span>
 						{/if}
 						{#if selectedReg.enrolledClassName}
-							<span class="text-xs text-primary-foreground">Kelas: <strong>{selectedReg.enrolledClassName}</strong></span>
+							<span class="text-xs text-foreground">Kelas: <strong>{selectedReg.enrolledClassName}</strong></span>
 						{/if}
 					</div>
 					{#if selectedReg.notes}
@@ -988,7 +1283,7 @@
 										</td>
 										<td>
 											<div class="flex flex-wrap items-center gap-1.5">
-												<a href={doc.url} target="_blank" rel="noopener" class="text-xs text-primary-foreground underline underline-offset-4">Lihat</a>
+												<a href={doc.url} target="_blank" rel="noopener" class="text-xs text-primary underline underline-offset-4">Lihat</a>
 												<a href={`${doc.url}?download=1`} download class="text-xs text-muted-foreground underline underline-offset-4">Unduh</a>
 												<form method="POST" action="?/verifyDocument" use:enhance={enhanceForm()} class="inline">
 													<input type="hidden" name="document_id" value={doc.id} />

@@ -142,6 +142,7 @@ export const subjects = sqliteTable(
 		school_id: integer('school_id').notNull(),
 		code: text('code').notNull(),
 		name: text('name').notNull(),
+		hours_per_week: integer('hours_per_week').notNull().default(2),
 		created_at: integer('created_at').notNull().default(sql`(unixepoch('subsec') * 1000)`),
 		deleted_at: integer('deleted_at')
 	},
@@ -165,6 +166,7 @@ export const classes = sqliteTable(
 		academic_year_id: integer('academic_year_id').notNull(),
 		name: text('name').notNull(),
 		level: text('level').notNull(),
+		room: text('room'),
 		homeroom_teacher_id: integer('homeroom_teacher_id'),
 		created_at: integer('created_at').notNull().default(sql`(unixepoch('subsec') * 1000)`),
 		deleted_at: integer('deleted_at')
@@ -277,6 +279,7 @@ export const classSubjects = sqliteTable(
 		subject_id: integer('subject_id').notNull(),
 		teacher_id: integer('teacher_id').notNull(),
 		academic_year_id: integer('academic_year_id').notNull(),
+		hours_per_week: integer('hours_per_week'),
 		created_at: integer('created_at').notNull().default(sql`(unixepoch('subsec') * 1000)`),
 		deleted_at: integer('deleted_at')
 	},
@@ -852,7 +855,7 @@ export const ppdbBatches = sqliteTable(
 		registration_fee: integer('registration_fee').notNull().default(0),
 		description: text('description'),
 		is_active: integer('is_active').notNull().default(1),
-		document_requirements: text('document_requirements').$type<{
+		document_requirements: text('document_requirements', { mode: 'json' }).$type<{
 			fields: {
 				key: string;
 				label: string;
@@ -1001,6 +1004,98 @@ export const ppdbRegistrationDocuments = sqliteTable(
 	]
 );
 
+// =========================================================
+// 13. PROYEK PENGUMPULAN BERKAS
+// =========================================================
+export const collectionProjects = sqliteTable(
+	'collection_projects',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		school_id: integer('school_id').notNull(),
+		title: text('title').notNull(),
+		description: text('description'),
+		deadline: text('deadline'),
+		is_active: integer('is_active').notNull().default(1),
+		created_by: integer('created_by'),
+		created_at: integer('created_at').notNull().default(sql`(unixepoch('subsec') * 1000)`),
+		updated_at: integer('updated_at').notNull().default(sql`(unixepoch('subsec') * 1000)`),
+		deleted_at: integer('deleted_at')
+	},
+	(t): SQLiteTableExtraConfigValue[] => [
+		index('idx_collection_projects_school_active').on(t.school_id, t.is_active),
+		index('idx_collection_projects_deleted_at').on(t.deleted_at),
+		check('collection_projects_is_active_check', sql`is_active IN (0, 1)`),
+		foreignKey({
+			name: 'collection_projects_school_id_schools_id_fk',
+			columns: [t.school_id],
+			foreignColumns: [schools.id]
+		}).onDelete('cascade'),
+		foreignKey({
+			name: 'collection_projects_created_by_users_id_fk',
+			columns: [t.created_by],
+			foreignColumns: [users.id]
+		}).onDelete('set null')
+	]
+);
+
+// Target: 'all' (semua guru), 'teacher' (guru tertentu).
+export const collectionProjectTargets = sqliteTable(
+	'collection_project_targets',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		project_id: integer('project_id').notNull(),
+		target_type: text('target_type').notNull(),
+		target_id: integer('target_id')
+	},
+	(t): SQLiteTableExtraConfigValue[] => [
+		index('idx_collection_targets_project').on(t.project_id),
+		check('collection_targets_type_check', sql`target_type IN ('all', 'teacher')`),
+		check(
+			'collection_targets_id_check',
+			sql`(target_type = 'all' AND target_id IS NULL) OR (target_type = 'teacher' AND target_id IS NOT NULL)`
+		),
+		unique('collection_targets_project_type_id_unique').on(t.project_id, t.target_type, t.target_id),
+		foreignKey({
+			name: 'collection_targets_project_id_collection_projects_id_fk',
+			columns: [t.project_id],
+			foreignColumns: [collectionProjects.id]
+		}).onDelete('cascade'),
+		foreignKey({
+			name: 'collection_targets_target_id_teachers_id_fk',
+			columns: [t.target_id],
+			foreignColumns: [teachers.id]
+		}).onDelete('cascade')
+	]
+);
+
+export const collectionSubmissions = sqliteTable(
+	'collection_submissions',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		school_id: integer('school_id').notNull(),
+		project_id: integer('project_id').notNull(),
+		teacher_id: integer('teacher_id').notNull(),
+		file_url: text('file_url').notNull(),
+		note: text('note'),
+		submitted_at: integer('submitted_at').notNull().default(sql`(unixepoch('subsec') * 1000)`)
+	},
+	(t): SQLiteTableExtraConfigValue[] => [
+		index('idx_collection_submissions_project').on(t.project_id),
+		index('idx_collection_submissions_teacher').on(t.teacher_id),
+		unique('collection_submissions_project_teacher_unique').on(t.project_id, t.teacher_id),
+		foreignKey({
+			name: 'collection_submissions_project_id_collection_projects_id_fk',
+			columns: [t.project_id],
+			foreignColumns: [collectionProjects.id]
+		}).onDelete('cascade'),
+		foreignKey({
+			name: 'collection_submissions_teacher_id_teachers_id_fk',
+			columns: [t.teacher_id],
+			foreignColumns: [teachers.id]
+		}).onDelete('cascade')
+	]
+);
+
 // Schema gabungan untuk migrasi & query
 export const schema = {
 	schools,
@@ -1028,7 +1123,10 @@ export const schema = {
 		ppdbBatches,
 	ppdbRegistrations,
 	ppdbTracks,
-	ppdbRegistrationDocuments
+	ppdbRegistrationDocuments,
+	collectionProjects,
+	collectionProjectTargets,
+	collectionSubmissions
 };
 
 export type School = typeof schools.$inferSelect;
@@ -1083,3 +1181,9 @@ export type PpdbTrack = typeof ppdbTracks.$inferSelect;
 export type NewPpdbTrack = typeof ppdbTracks.$inferInsert;
 export type PpdbRegistrationDocument = typeof ppdbRegistrationDocuments.$inferSelect;
 export type NewPpdbRegistrationDocument = typeof ppdbRegistrationDocuments.$inferInsert;
+export type CollectionProject = typeof collectionProjects.$inferSelect;
+export type NewCollectionProject = typeof collectionProjects.$inferInsert;
+export type CollectionProjectTarget = typeof collectionProjectTargets.$inferSelect;
+export type NewCollectionProjectTarget = typeof collectionProjectTargets.$inferInsert;
+export type CollectionSubmission = typeof collectionSubmissions.$inferSelect;
+export type NewCollectionSubmission = typeof collectionSubmissions.$inferInsert;

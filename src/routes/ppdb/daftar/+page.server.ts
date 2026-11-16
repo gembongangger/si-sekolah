@@ -320,15 +320,22 @@ export const actions: Actions = {
 
 		// Upload documents per requirements from batch config
 		let documents: Array<{ key: string; url: string; label: string }> = [];
-		if (batch.documentRequirements) {
-			const fields = batch.documentRequirements.fields || [];
-			for (const doc of fields) {
+		const docReq = batch.documentRequirements as { fields?: Array<{ key: string; label: string; required?: boolean; formats?: string[] }> } | null;
+		const docFields = Array.isArray(docReq?.fields) ? docReq!.fields! : [];
+		if (docFields.length) {
+			for (const doc of docFields) {
 				const file = formData.get(`doc_${doc.key}`) as File | null;
 				if (file && file.size > 0) {
-					// Validate format
-					const allowed = doc.formats || ['jpg', 'jpeg', 'png', 'pdf'];
-					const isAllowed = allowed.some((f) => file.type === `image/${f}` || file.type === `application/pdf`);
-					if (!isAllowed) {
+					// Validate format (jpg/jpeg -> image/jpeg)
+					const allowed = (doc.formats?.length ? doc.formats : ['jpg', 'png', 'pdf']).map((f) => f.toLowerCase());
+					const mimeOk = allowed.some((f) => {
+						if (f === 'pdf') return file.type === 'application/pdf';
+						if (f === 'jpg' || f === 'jpeg') return file.type === 'image/jpeg';
+						return file.type === `image/${f}`;
+					});
+					const ext = (file.name.split('.').pop() || '').toLowerCase();
+					const extOk = allowed.some((f) => ext === f || (f === 'jpg' && ext === 'jpeg') || (f === 'jpeg' && ext === 'jpg'));
+					if (!mimeOk && !extOk) {
 						return fail(400, {
 							error: `Format ${file.name} tidak didukung. Izinkan: ${allowed.join(', ')}`,
 							values: rawData

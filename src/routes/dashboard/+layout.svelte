@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { afterNavigate } from '$app/navigation';
 	import type { LayoutData } from './$types';
 	import { applySchoolTheme } from '$lib/theme';
 	import House from '@lucide/svelte/icons/house';
@@ -19,6 +20,7 @@
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import Settings from '@lucide/svelte/icons/settings';
 	import FileText from '@lucide/svelte/icons/file-text';
+	import FolderUp from '@lucide/svelte/icons/folder-up';
 
 	const iconMap: Record<string, typeof House> = {
 		home: House,
@@ -37,7 +39,8 @@
 		sliders: SlidersHorizontal,
 		exclamation: TriangleAlert,
 		settings: Settings,
-		'file-text': FileText
+		'file-text': FileText,
+		'folder-up': FolderUp
 	};
 
 	let { data, children }: { data: LayoutData; children: any } = $props();
@@ -70,6 +73,7 @@
 					{ href: '/dashboard/jam-pelajaran', label: 'Jam Pelajaran', icon: 'clock' },
 					{ href: '/dashboard/jadwal', label: 'Jadwal', icon: 'calendar' },
 					{ href: '/dashboard/sanksi', label: 'Sanksi Poin', icon: 'alert-circle' },
+					{ href: '/dashboard/pengumpulan', label: 'Pengumpulan Berkas', icon: 'folder-up' },
 					{ href: '/dashboard/pengaturan', label: 'Pengaturan Tema', icon: 'sliders' },
 					{ href: '/dashboard/pelanggaran', label: 'Pelanggaran', icon: 'exclamation' }
 				];
@@ -87,6 +91,7 @@
 					{ href: '/dashboard/jurnal', label: 'Jurnal Mengajar', icon: 'book-open' },
 					{ href: '/dashboard/jadwal', label: 'Jadwal Saya', icon: 'calendar' },
 					{ href: '/dashboard/siswa', label: 'Data Siswa', icon: 'users' },
+					{ href: '/dashboard/pengumpulan', label: 'Pengumpulan Berkas', icon: 'folder-up' },
 					{ href: '/dashboard/pelanggaran', label: 'Catat Pelanggaran', icon: 'exclamation' }
 				];
 			case 'siswa':
@@ -110,6 +115,10 @@
 	};
 
 	let sidebarOpen = $state(false);
+
+	afterNavigate(() => {
+		sidebarOpen = false;
+	});
 </script>
 
 <div class="min-h-screen bg-background flex">
@@ -213,7 +222,7 @@
 			<span class="text-sm font-semibold text-foreground">SIS</span>
 		</header>
 
-		<main class="flex-1 p-6">
+		<main class="flex-1 p-4 sm:p-6">
 			{@render children()}
 		</main>
 	</div>
