@@ -115,12 +115,15 @@
 	<!-- Top Navigation -->
 	<header class="bg-card border-b border-border sticky top-0 z-40 no-print">
 		<div class="max-w-4xl mx-auto px-4 py-3.5 flex items-center justify-between">
-			<a
-				href="/ppdb"
-				class="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium"
-			>
-				<span class="text-lg">←</span> Kembali ke Info PPDB
-			</a>
+			<div class="flex items-center gap-3">
+				<a href="/" class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+					← Beranda
+				</a>
+				<span class="text-border">|</span>
+				<a href="/ppdb" class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+					Info PPDB
+				</a>
+			</div>
 			<a href="/ppdb/daftar" class="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl text-sm shadow-sm transition-colors">
 				Daftar Sekarang
 			</a>

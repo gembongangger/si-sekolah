@@ -264,9 +264,17 @@
 	<!-- Top Navigation -->
 	<header class="bg-card border-b border-border sticky top-0 z-40">
 		<div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-			<a href="/ppdb" class="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm font-medium">
-				<span class="text-lg">←</span> <span class="hidden xs:inline sm:inline">Kembali ke Info PPDB</span><span class="sm:hidden">Info PPDB</span>
-			</a>
+			<div class="flex items-center gap-3">
+				<a href="/" class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+					← Beranda
+				</a>
+				{#if !data.lockedSchool}
+					<span class="text-border">|</span>
+					<a href="/ppdb" class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+						Info PPDB
+					</a>
+				{/if}
+			</div>
 			<a href="/ppdb/status" class="text-primary-foreground hover:text-primary-foreground font-medium text-sm">
 				🔍 Cek Status
 			</a>
@@ -281,17 +289,17 @@
 					<img src={data.lockedSchool.logo} alt={data.lockedSchool.name} class="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-white/90 object-contain p-1 shrink-0" />
 				{/if}
 				<div>
-					<span class="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-card/20 text-white mb-2 sm:mb-3 backdrop-blur-sm">
+					<span class="inline-block px-3 py-1 rounded-full text-sm font-semibold bg-card/20 text-white mb-2 sm:mb-3 backdrop-blur-sm">
 						📝 Formulir Resmi Calon Siswa
 					</span>
 					{#if data.lockedSchool}
 						<h1 class="text-xl sm:text-3xl font-extrabold leading-tight">{data.lockedSchool.name}</h1>
-						<p class="text-blue-100 text-xs sm:text-sm mt-1.5 sm:mt-2 max-w-xl leading-relaxed">
+						<p class="text-blue-100 text-sm mt-1.5 sm:mt-2 max-w-xl leading-relaxed">
 							Pendaftaran Peserta Didik Baru{data.lockedSchool.npsn ? ` · NPSN ${data.lockedSchool.npsn}` : ''}
 						</p>
 					{:else}
 						<h1 class="text-xl sm:text-3xl font-extrabold leading-tight">Formulir Pendaftaran Peserta Didik Baru</h1>
-						<p class="text-blue-100 text-xs sm:text-sm mt-1.5 sm:mt-2 max-w-xl leading-relaxed">
+						<p class="text-blue-100 text-sm mt-1.5 sm:mt-2 max-w-xl leading-relaxed">
 							Isi data bertahap dengan teliti sesuai dokumen resmi (Kartu Keluarga, Akta Kelahiran, Rapor).
 						</p>
 					{/if}
@@ -305,7 +313,7 @@
 				<span class="text-lg">⚠️</span>
 				<div>
 					<p class="font-bold text-sm">Pendaftaran Belum Berhasil</p>
-					<p class="text-xs mt-0.5">{form.error}</p>
+					<p class="text-sm mt-0.5">{form.error}</p>
 				</div>
 			</div>
 		{/if}
@@ -317,7 +325,7 @@
 				<p class="text-sm text-muted-foreground max-w-md mx-auto">
 					Saat ini belum ada gelombang pendaftaran yang aktif. Silakan hubungi pihak madrasah/sekolah atau pantau informasi secara berkala.
 				</p>
-				<a href="/ppdb" class="inline-block px-4 py-2 bg-muted text-foreground font-medium rounded-xl text-xs hover:bg-slate-200">
+				<a href="/ppdb" class="inline-block px-4 py-2 bg-muted text-foreground font-medium rounded-xl text-sm hover:bg-slate-200">
 					Kembali ke Beranda
 				</a>
 			</div>
@@ -333,8 +341,8 @@
 				<!-- Progress Indicator -->
 				<div class="bg-card rounded-2xl border border-border shadow-sm p-4 sm:p-5">
 					<div class="flex items-center justify-between mb-3">
-						<p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Langkah {step} dari {TOTAL_STEPS}</p>
-						<p class="text-xs font-bold text-primary-foreground">{stepMeta[step - 1].label}</p>
+						<p class="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Langkah {step} dari {TOTAL_STEPS}</p>
+						<p class="text-sm font-bold text-primary-foreground">{stepMeta[step - 1].label}</p>
 					</div>
 					<div class="flex items-center">
 						{#each stepMeta as s, i (s.n)}
@@ -346,7 +354,7 @@
 								class:flex-1={i < stepMeta.length}
 							>
 								<span
-									class="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold border-2 transition-colors
+									class="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-colors
 									{s.n < step
 										? 'bg-success/100 border-emerald-500 text-success-foreground'
 										: s.n === step
@@ -356,7 +364,7 @@
 									{#if s.n < step}✓{:else}{s.n}{/if}
 								</span>
 								<span
-									class="text-[10px] sm:text-xs font-medium {s.n === step ? 'text-primary-foreground' : 'text-muted-foreground'}"
+									class="text-sm font-medium {s.n === step ? 'text-primary-foreground' : 'text-muted-foreground'}"
 								>{s.label}</span>
 							</button>
 							{#if i < stepMeta.length - 1}
@@ -374,18 +382,18 @@
 					<div class="bg-card p-4 sm:p-6 rounded-2xl border border-border shadow-sm space-y-4">
 						<div class="border-b border-border pb-3">
 							<h2 class="text-base font-bold text-foreground flex items-center gap-2">
-								<span class="w-6 h-6 rounded-full bg-primary/10 text-primary-foreground text-xs flex items-center justify-center font-bold">1</span>
+								<span class="w-6 h-6 rounded-full bg-primary/10 text-primary-foreground text-sm flex items-center justify-center font-bold">1</span>
 								Pilihan Gelombang & Sekolah
 							</h2>
-							<p class="text-xs text-muted-foreground mt-0.5">Pilih sekolah tujuan terlebih dahulu, lalu gelombang pendaftarannya.</p>
+							<p class="text-sm text-muted-foreground mt-0.5">Pilih sekolah tujuan terlebih dahulu, lalu gelombang pendaftarannya.</p>
 						</div>
 
 						<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 							<div>
-								<label for="school_id" class="block text-xs font-semibold text-foreground mb-1.5">Sekolah Tujuan <span class="text-destructive">*</span></label>
+								<label for="school_id" class="block text-sm font-semibold text-foreground mb-1.5">Sekolah Tujuan <span class="text-destructive">*</span></label>
 								{#if data.lockedSchool}
 									<input type="hidden" name="school_id" value={data.lockedSchool.id} />
-									<div class="w-full px-3 py-3 sm:py-2.5 bg-muted/50 border border-border rounded-xl text-sm font-semibold text-foreground">
+									<div class="w-full px-3 py-3 sm:py-2.5 bg-muted/50 border border-border rounded-xl text-base font-semibold text-foreground">
 										{data.lockedSchool.name}{data.lockedSchool.npsn ? ` (${data.lockedSchool.npsn})` : ''}
 									</div>
 								{:else}
@@ -394,7 +402,7 @@
 										name="school_id"
 										bind:value={selectedSchoolId}
 										required
-										class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-sm focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
+										class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-base focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
 									>
 										{#each schoolsWithBatches as s}
 											<option value={s.id}>
@@ -406,13 +414,13 @@
 							</div>
 
 							<div>
-								<label for="batch_id" class="block text-xs font-semibold text-foreground mb-1.5">Gelombang Pendaftaran <span class="text-destructive">*</span></label>
+								<label for="batch_id" class="block text-sm font-semibold text-foreground mb-1.5">Gelombang Pendaftaran <span class="text-destructive">*</span></label>
 								<select
 									id="batch_id"
 									name="batch_id"
 									bind:value={selectedBatchId}
 									required
-									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-sm focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
+									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-base focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
 								>
 									{#each schoolBatches as b}
 										<option value={b.id}>
@@ -424,7 +432,7 @@
 						</div>
 
 						{#if currentBatch}
-							<div class="bg-primary/10/60 border border-blue-100 rounded-xl p-3 flex flex-col justify-center text-xs space-y-1">
+							<div class="bg-primary/10/60 border border-blue-100 rounded-xl p-3 flex flex-col justify-center text-sm space-y-1">
 								<p class="text-blue-900 font-semibold">Informasi Gelombang:</p>
 								<p class="text-muted-foreground">Sekolah: <strong class="text-foreground">{currentBatch.schoolName}</strong></p>
 								<p class="text-muted-foreground">Periode: {currentBatch.startDate} s/d {currentBatch.endDate}</p>
@@ -439,15 +447,15 @@
 					<div class="bg-card p-4 sm:p-6 rounded-2xl border border-border shadow-sm space-y-4">
 						<div class="border-b border-border pb-3">
 							<h2 class="text-base font-bold text-foreground flex items-center gap-2">
-								<span class="w-6 h-6 rounded-full bg-primary/10 text-primary-foreground text-xs flex items-center justify-center font-bold">2</span>
+								<span class="w-6 h-6 rounded-full bg-primary/10 text-primary-foreground text-sm flex items-center justify-center font-bold">2</span>
 								Data Pribadi Calon Peserta Didik
 							</h2>
-							<p class="text-xs text-muted-foreground mt-0.5">Identitas calon siswa sesuai dokumen resmi.</p>
+							<p class="text-sm text-muted-foreground mt-0.5">Identitas calon siswa sesuai dokumen resmi.</p>
 						</div>
 
 						<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 							<div class="sm:col-span-2">
-								<label for="full_name" class="block text-xs font-semibold text-foreground mb-1.5">Nama Lengkap <span class="text-destructive">*</span></label>
+								<label for="full_name" class="block text-sm font-semibold text-foreground mb-1.5">Nama Lengkap <span class="text-destructive">*</span></label>
 								<input
 									id="full_name"
 									type="text"
@@ -455,12 +463,12 @@
 									required
 									value={form?.values?.full_name ?? ''}
 									placeholder="Contoh: Muhammad Rizky Pratama"
-									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-sm focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
+									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-base focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
 								/>
 							</div>
 
 							<div>
-								<label for="nisn" class="block text-xs font-semibold text-foreground mb-1.5">NISN (10 Digit Angka)</label>
+								<label for="nisn" class="block text-sm font-semibold text-foreground mb-1.5">NISN (10 Digit Angka)</label>
 								<input
 									id="nisn"
 									type="text"
@@ -469,12 +477,12 @@
 									inputmode="numeric"
 									value={form?.values?.nisn ?? ''}
 									placeholder="Contoh: 0071234567"
-									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-sm focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
+									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-base focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
 								/>
 							</div>
 
 							<div>
-								<label for="nik" class="block text-xs font-semibold text-foreground mb-1.5">NIK / No. KTP (16 Digit)</label>
+								<label for="nik" class="block text-sm font-semibold text-foreground mb-1.5">NIK / No. KTP (16 Digit)</label>
 								<input
 									id="nik"
 									type="text"
@@ -483,18 +491,18 @@
 									inputmode="numeric"
 									value={form?.values?.nik ?? ''}
 									placeholder="Nomor Induk Kependudukan di KK"
-									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-sm focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
+									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-base focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
 								/>
 							</div>
 
 							<div>
-								<label for="gender" class="block text-xs font-semibold text-foreground mb-1.5">Jenis Kelamin <span class="text-destructive">*</span></label>
+								<label for="gender" class="block text-sm font-semibold text-foreground mb-1.5">Jenis Kelamin <span class="text-destructive">*</span></label>
 								<select
 									id="gender"
 									name="gender"
 									required
 									value={form?.values?.gender ?? 'L'}
-									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-sm focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
+									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-base focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
 								>
 									<option value="L">Laki-laki</option>
 									<option value="P">Perempuan</option>
@@ -502,12 +510,12 @@
 							</div>
 
 							<div>
-								<label for="religion" class="block text-xs font-semibold text-foreground mb-1.5">Agama</label>
+								<label for="religion" class="block text-sm font-semibold text-foreground mb-1.5">Agama</label>
 								<select
 									id="religion"
 									name="religion"
 									value={form?.values?.religion ?? 'Islam'}
-									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-sm focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
+									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-base focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
 								>
 									<option value="Islam">Islam</option>
 									<option value="Kristen">Kristen</option>
@@ -519,26 +527,26 @@
 							</div>
 
 							<div>
-								<label for="birth_place" class="block text-xs font-semibold text-foreground mb-1.5">Tempat Lahir</label>
+								<label for="birth_place" class="block text-sm font-semibold text-foreground mb-1.5">Tempat Lahir</label>
 								<input
 									id="birth_place"
 									type="text"
 									name="birth_place"
 									value={form?.values?.birth_place ?? ''}
 									placeholder="Kota/Kabupaten kelahiran"
-									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-sm focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
+									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-base focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
 								/>
 							</div>
 
 						<div>
-							<label for="birth_date" class="block text-xs font-semibold text-foreground mb-1.5">Tanggal Lahir <span class="text-destructive">*</span></label>
+							<label for="birth_date" class="block text-sm font-semibold text-foreground mb-1.5">Tanggal Lahir <span class="text-destructive">*</span></label>
 							<input
 								id="birth_date"
 								type="date"
 								name="birth_date"
 								required
 								value={form?.values?.birth_date ?? '2010-01-01'}
-								class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-sm focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
+								class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-base focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
 							/>
 						</div>
 					</div>
@@ -559,7 +567,7 @@
 							<button
 								type="button"
 								onclick={openCamera}
-								class="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md transition-all active:scale-[0.98]"
+								class="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-sm font-bold rounded-xl shadow-md transition-all active:scale-[0.98]"
 							>
 								<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 									<path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.127 2.127 0 0 1 9 5h6a2.127 2.127 0 0 1 2.172 1.175M9 5h-.414A4.598 4.598 0 0 0 4.2 8.586V14m15.8 0V8.586A4.598 4.598 0 0 0 18.414 5H18"/>
@@ -572,7 +580,7 @@
 							<button
 								type="button"
 								onclick={() => fileInputEl?.click()}
-								class="inline-flex items-center gap-2 px-5 py-3 bg-muted hover:bg-slate-200 text-foreground text-xs sm:text-sm font-semibold rounded-xl transition-colors"
+								class="inline-flex items-center gap-2 px-5 py-3 bg-muted hover:bg-slate-200 text-foreground text-sm font-semibold rounded-xl transition-colors"
 							>
 								<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 									<path stroke-linecap="round" stroke-linejoin="round" d="M4.25 15.75A2.25 2.25 0 0 1 6.5 13.5h11a2.25 2.25 0 0 1 2.25 2.25M4.25 15.75V18a.75.75 0 0 0 .75.75h14.1a.75.75 0 0 0 .75-.75v-2.25M4.25 15.75l1.25-4.5h13l1.25 4.5M12 8a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>
@@ -590,11 +598,11 @@
 						</div>
 
 						{#if photoFile}
-							<p class="text-[11px] text-success-foreground mt-2 flex items-center gap-1">
+							<p class="text-sm text-success-foreground mt-2 flex items-center gap-1">
 								<span>✓</span> Foto sudah siap ({Math.round((photoFile?.size ?? 0) / 1024)} KB)
 							</p>
 						{:else}
-							<p class="text-[11px] text-muted-foreground mt-2">Foto wajah pas, latar polos. Maks 10 MB — JPG, PNG, atau WEBP.</p>
+							<p class="text-sm text-muted-foreground mt-2">Foto wajah pas, latar polos. Maks 10 MB — JPG, PNG, atau WEBP.</p>
 						{/if}
 
 						<!-- Kamera Modal -->
@@ -621,7 +629,7 @@
 									</div>
 									<div class="p-4 space-y-3">
 										{#if cameraError}
-											<p class="text-xs text-destructive">{cameraError}</p>
+											<p class="text-sm text-destructive">{cameraError}</p>
 										{/if}
 										<div class="flex items-center gap-3">
 											<button
@@ -655,10 +663,10 @@
 							<h3 class="text-sm font-bold text-foreground flex items-center gap-2">
 								<span>📎</span> Dokumen Persyaratan
 							</h3>
-							<p class="text-xs text-muted-foreground">Upload dokumen sesuai format. Maks 10 MB per file.</p>
+							<p class="text-sm text-muted-foreground">Upload dokumen sesuai format. Maks 10 MB per file.</p>
 							{#each currentBatch.documentRequirements.fields as doc (doc.key)}
 								<div class="space-y-1.5">
-									<label for={`doc_${doc.key}`} class="block text-xs font-semibold text-foreground">
+									<label for={`doc_${doc.key}`} class="block text-sm font-semibold text-foreground">
 										{doc.label}
 										{#if doc.required}<span class="text-destructive">*</span>{/if}
 									</label>
@@ -669,10 +677,10 @@
 										accept={(doc.formats || ['jpg', 'png', 'pdf']).map((f) => (f === 'pdf' ? '.pdf,application/pdf' : `.${f},image/${f}`)).join(',')}
 										required={doc.required}
 										onchange={(e) => onDocFileChange(doc.key, e)}
-										class="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-primary/10 file:text-primary-foreground file:font-semibold file:text-xs hover:file:bg-primary/20"
+										class="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-primary/10 file:text-primary-foreground file:font-semibold file:text-sm hover:file:bg-primary/20"
 									/>
 									{#if uploadedDocs[doc.key]}
-										<p class="text-[11px] text-success-foreground">✓ {uploadedDocs[doc.key]?.name}</p>
+										<p class="text-sm text-success-foreground">✓ {uploadedDocs[doc.key]?.name}</p>
 									{/if}
 								</div>
 							{/each}
@@ -686,28 +694,28 @@
 					<div class="bg-card p-4 sm:p-6 rounded-2xl border border-border shadow-sm space-y-4">
 						<div class="border-b border-border pb-3">
 							<h2 class="text-base font-bold text-foreground flex items-center gap-2">
-								<span class="w-6 h-6 rounded-full bg-primary/10 text-primary-foreground text-xs flex items-center justify-center font-bold">3</span>
+								<span class="w-6 h-6 rounded-full bg-primary/10 text-primary-foreground text-sm flex items-center justify-center font-bold">3</span>
 								Alamat & Kontak Calon Siswa
 							</h2>
-							<p class="text-xs text-muted-foreground mt-0.5">Alamat domisili saat ini dan kontak yang aktif dihubungi.</p>
+							<p class="text-sm text-muted-foreground mt-0.5">Alamat domisili saat ini dan kontak yang aktif dihubungi.</p>
 						</div>
 
 						<div class="space-y-4">
 							<div>
-								<label for="address" class="block text-xs font-semibold text-foreground mb-1.5">Alamat Lengkap (Jalan, RT/RW, Dusun, Desa/Kelurahan, Kecamatan) <span class="text-destructive">*</span></label>
+								<label for="address" class="block text-sm font-semibold text-foreground mb-1.5">Alamat Lengkap (Jalan, RT/RW, Dusun, Desa/Kelurahan, Kecamatan) <span class="text-destructive">*</span></label>
 								<textarea
 									id="address"
 									name="address"
 									rows="3"
 									required
 									placeholder="Contoh: Jl. Diponegoro No. 45, RT 02 / RW 05, Kaliwates, Jember"
-									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-sm focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
+									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-base focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
 								>{form?.values?.address ?? ''}</textarea>
 							</div>
 
 							<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 								<div>
-									<label for="phone" class="block text-xs font-semibold text-foreground mb-1.5">No. HP / WhatsApp Siswa</label>
+									<label for="phone" class="block text-sm font-semibold text-foreground mb-1.5">No. HP / WhatsApp Siswa</label>
 									<input
 										id="phone"
 										type="tel"
@@ -715,12 +723,12 @@
 										inputmode="tel"
 										value={form?.values?.phone ?? ''}
 										placeholder="Contoh: 081234567890"
-										class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-sm focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
+										class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-base focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
 									/>
 								</div>
 
 								<div>
-									<label for="email" class="block text-xs font-semibold text-foreground mb-1.5">Email Siswa (Aktif)</label>
+									<label for="email" class="block text-sm font-semibold text-foreground mb-1.5">Email Siswa (Aktif)</label>
 									<input
 										id="email"
 										type="email"
@@ -728,7 +736,7 @@
 										inputmode="email"
 										value={form?.values?.email ?? ''}
 										placeholder="nama@gmail.com"
-										class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-sm focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
+										class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-base focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
 									/>
 								</div>
 							</div>
@@ -741,15 +749,15 @@
 					<div class="bg-card p-4 sm:p-6 rounded-2xl border border-border shadow-sm space-y-4">
 						<div class="border-b border-border pb-3">
 							<h2 class="text-base font-bold text-foreground flex items-center gap-2">
-								<span class="w-6 h-6 rounded-full bg-primary/10 text-primary-foreground text-xs flex items-center justify-center font-bold">4</span>
+								<span class="w-6 h-6 rounded-full bg-primary/10 text-primary-foreground text-sm flex items-center justify-center font-bold">4</span>
 								Asal Sekolah, Jalur & Peminatan
 							</h2>
-							<p class="text-xs text-muted-foreground mt-0.5">Riwayat pendidikan sebelumnya dan jurusan yang diinginkan.</p>
+							<p class="text-sm text-muted-foreground mt-0.5">Riwayat pendidikan sebelumnya dan jurusan yang diinginkan.</p>
 						</div>
 
 						<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 							<div>
-								<label for="previous_school" class="block text-xs font-semibold text-foreground mb-1.5">Nama Sekolah Asal <span class="text-destructive">*</span></label>
+								<label for="previous_school" class="block text-sm font-semibold text-foreground mb-1.5">Nama Sekolah Asal <span class="text-destructive">*</span></label>
 								<input
 									id="previous_school"
 									type="text"
@@ -757,12 +765,12 @@
 									required
 									value={form?.values?.previous_school ?? ''}
 									placeholder="Contoh: SDN 1 Jember / MTsN 1 Jember / SMP 2 Malang"
-									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-sm focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
+									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-base focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
 								/>
 							</div>
 
 							<div>
-								<label for="graduation_year" class="block text-xs font-semibold text-foreground mb-1.5">Tahun Lulus Sekolah Asal</label>
+								<label for="graduation_year" class="block text-sm font-semibold text-foreground mb-1.5">Tahun Lulus Sekolah Asal</label>
 								<input
 									id="graduation_year"
 									type="number"
@@ -771,18 +779,18 @@
 									min="2020"
 									max="2030"
 									value={form?.values?.graduation_year ?? new Date().getFullYear()}
-									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-sm focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
+									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-base focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
 								/>
 							</div>
 
 							<div>
-								<label for="track" class="block text-xs font-semibold text-foreground mb-1.5">Jalur Pendaftaran <span class="text-destructive">*</span></label>
+								<label for="track" class="block text-sm font-semibold text-foreground mb-1.5">Jalur Pendaftaran <span class="text-destructive">*</span></label>
 								<select
 									id="track"
 									name="track"
 									bind:value={selectedTrack}
 									required
-									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-sm focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
+									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-base focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
 								>
 									{#each schoolTracks as t (t.code)}
 										<option value={t.code}>{t.name}</option>
@@ -791,13 +799,13 @@
 							</div>
 
 							<div>
-								<label for="major_choice" class="block text-xs font-semibold text-foreground mb-1.5">Pilihan Jurusan / Peminatan <span class="text-destructive">*</span></label>
+								<label for="major_choice" class="block text-sm font-semibold text-foreground mb-1.5">Pilihan Jurusan / Peminatan <span class="text-destructive">*</span></label>
 								<select
 									id="major_choice"
 									name="major_choice"
 									required
 									value={form?.values?.major_choice ?? 'MIPA'}
-									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-sm focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
+									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-base focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
 								>
 									<option value="MIPA">MIPA (Matematika & Ilmu Pengetahuan Alam)</option>
 									<option value="IPS">IPS (Ilmu Pengetahuan Sosial)</option>
@@ -814,15 +822,15 @@
 					<div class="bg-card p-4 sm:p-6 rounded-2xl border border-border shadow-sm space-y-4">
 						<div class="border-b border-border pb-3">
 							<h2 class="text-base font-bold text-foreground flex items-center gap-2">
-								<span class="w-6 h-6 rounded-full bg-primary/10 text-primary-foreground text-xs flex items-center justify-center font-bold">5</span>
+								<span class="w-6 h-6 rounded-full bg-primary/10 text-primary-foreground text-sm flex items-center justify-center font-bold">5</span>
 								Data Orang Tua / Wali
 							</h2>
-							<p class="text-xs text-muted-foreground mt-0.5">Identitas penanggung jawab calon peserta didik.</p>
+							<p class="text-sm text-muted-foreground mt-0.5">Identitas penanggung jawab calon peserta didik.</p>
 						</div>
 
 						<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 							<div class="sm:col-span-2">
-								<label for="parent_name" class="block text-xs font-semibold text-foreground mb-1.5">Nama Ayah / Ibu / Wali <span class="text-destructive">*</span></label>
+								<label for="parent_name" class="block text-sm font-semibold text-foreground mb-1.5">Nama Ayah / Ibu / Wali <span class="text-destructive">*</span></label>
 								<input
 									id="parent_name"
 									type="text"
@@ -830,12 +838,12 @@
 									required
 									value={form?.values?.parent_name ?? ''}
 									placeholder="Contoh: Bambang Sutejo"
-									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-sm focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
+									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-base focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
 								/>
 							</div>
 
 							<div>
-								<label for="parent_phone" class="block text-xs font-semibold text-foreground mb-1.5">No. HP / WA Orang Tua <span class="text-destructive">*</span></label>
+								<label for="parent_phone" class="block text-sm font-semibold text-foreground mb-1.5">No. HP / WA Orang Tua <span class="text-destructive">*</span></label>
 								<input
 									id="parent_phone"
 									type="tel"
@@ -844,24 +852,24 @@
 									required
 									value={form?.values?.parent_phone ?? ''}
 									placeholder="Contoh: 085233445566"
-									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-sm focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
+									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-base focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
 								/>
 							</div>
 
 							<div>
-								<label for="parent_job" class="block text-xs font-semibold text-foreground mb-1.5">Pekerjaan Orang Tua</label>
+								<label for="parent_job" class="block text-sm font-semibold text-foreground mb-1.5">Pekerjaan Orang Tua</label>
 								<input
 									id="parent_job"
 									type="text"
 									name="parent_job"
 									value={form?.values?.parent_job ?? ''}
 									placeholder="PNS / Wiraswasta / Petani / dll"
-									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-sm focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
+									class="w-full px-3 py-3 sm:py-2.5 bg-background border border-border rounded-xl text-base focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
 								/>
 							</div>
 						</div>
 
-						<label class="flex items-start gap-3 cursor-pointer text-xs text-foreground leading-relaxed bg-primary/10/50 p-4 rounded-xl border border-border">
+						<label class="flex items-start gap-3 cursor-pointer text-sm text-foreground leading-relaxed bg-primary/10/50 p-4 rounded-xl border border-border">
 							<input type="checkbox" required class="w-4 h-4 mt-0.5 rounded text-primary-foreground focus:ring-ring border-slate-300 shrink-0" />
 							<span>
 								Saya menyatakan bahwa data yang diisikan dalam formulir pendaftaran ini adalah <strong>benar, sah, dan dapat dipertanggungjawabkan</strong>. Apabila di kemudian hari ditemukan ketidakbenaran data, saya bersedia menerima sanksi pembatalan kelulusan.
@@ -901,7 +909,7 @@
 					{/if}
 				</div>
 
-				<p class="text-center text-[11px] text-muted-foreground">
+				<p class="text-center text-sm text-muted-foreground">
 					Langkah {step}/{TOTAL_STEPS} — data tersimpan selama berpindah langkah sebelum dikirim.
 				</p>
 			</form>

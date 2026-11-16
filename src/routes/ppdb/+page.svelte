@@ -28,6 +28,13 @@
 			</a>
 			<div class="flex items-center gap-1.5 sm:gap-3 text-sm shrink-0">
 				<a
+					href="/"
+					class="px-2.5 sm:px-3.5 py-2 text-muted-foreground hover:text-foreground font-medium transition-colors whitespace-nowrap"
+				>
+					<span class="hidden sm:inline">Beranda</span>
+					<span class="sm:hidden">Home</span>
+				</a>
+				<a
 					href="/ppdb/status"
 					class="px-2.5 sm:px-3.5 py-2 text-foreground hover:text-primary-foreground font-medium transition-colors whitespace-nowrap"
 				>
@@ -51,12 +58,12 @@
 	</header>
 
 	<!-- Hero Banner -->
-	<section class="bg-primary text-primary-foreground py-12 sm:py-16 px-4">
-		<div class="max-w-4xl mx-auto text-center space-y-4 sm:space-y-5">
+	<section class="bg-primary text-primary-foreground py-8 sm:py-12 md:py-16 px-4">
+		<div class="max-w-4xl mx-auto text-center space-y-3 sm:space-y-4 md:space-y-5">
 			<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-primary/20 text-primary-foreground border border-primary/30">
 				✨ Pendaftaran Peserta Didik Baru Resmi Dibuka
 			</span>
-			<h1 class="text-2xl sm:text-5xl font-extrabold tracking-tight leading-tight">
+			<h1 class="text-xl sm:text-4xl md:text-5xl font-extrabold tracking-tight leading-tight">
 				Masa Depan Cerah Dimulai dari Madrasah Unggul
 			</h1>
 			<p class="text-muted-foreground text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
