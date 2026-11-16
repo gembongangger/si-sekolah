@@ -12,11 +12,16 @@
 </script>
 
 <svelte:head>
-	<title>Login — Sistem Informasi Sekolah</title>
+	<title>Masuk — SISKO</title>
 </svelte:head>
 
 <div class="min-h-screen bg-muted/50 flex items-center justify-center px-4">
 	<div class="w-full max-w-md">
+		<div class="mb-4">
+			<a href="/" class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+				<span aria-hidden="true">←</span> Beranda
+			</a>
+		</div>
 		<!-- Header -->
 		<div class="text-center mb-8">
 			<div class="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-2xl mb-4">
@@ -35,24 +40,16 @@
 					/>
 				</svg>
 			</div>
-			<h1 class="text-2xl font-bold text-foreground">Sistem Informasi Sekolah</h1>
-			<p class="text-sm text-muted-foreground mt-1">Masuk untuk melanjutkan</p>
+			<h1 class="text-2xl font-bold text-foreground">Masuk ke SISKO</h1>
+			<p class="text-sm text-muted-foreground mt-1">Sistem Informasi Sekolah</p>
 		</div>
 
 		<!-- Link PPDB -->
 		<div class="mb-6 text-center">
 			<a
 				href="/ppdb"
-				class="inline-flex items-center gap-2 text-sm text-primary-foreground hover:text-primary-foreground font-medium transition-colors"
+				class="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
 			>
-				<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-					/>
-				</svg>
 				Pendaftaran Siswa Baru (PPDB)
 			</a>
 		</div>
