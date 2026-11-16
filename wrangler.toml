@@ -16,6 +16,7 @@ AUTH_SECRET = "local-dev-dev-secret-change-me-in-production-please-change"
 binding = "DB"
 database_name = "school-info-db"
 database_id = "15e3ddc5-dda1-464c-b0d8-c97e52a3a4c9"
+migrations_dir = "drizzle"
 
 [[r2_buckets]]
 binding = "STORAGE_BUCKET"
