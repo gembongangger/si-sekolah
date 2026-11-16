@@ -44,6 +44,8 @@
 		TableHeader,
 		TableRow
 	} from '$lib/components/ui/table/index.js';
+	import { Pagination } from '$lib/components/ui/pagination/index.js';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
 
 	let { data, form: actionForm }: { data: PageData; form: ActionData } = $props();
 
@@ -63,6 +65,50 @@
 	let showImportModal = $state(false);
 	let editSiswa: (typeof data.siswas)[0] | null = $state(null);
 	let deleteTarget: { id: number; name: string } | null = $state(null);
+
+	let page = $state(1);
+	let pageSize = $state(10);
+	let filterName = $state('');
+	let filterEmail = $state('');
+	let filterNis = $state('');
+	let filterNisn = $state('');
+	let filterClass = $state('');
+	let filterGender = $state('');
+	let filterStatus = $state('');
+
+	function resetFilters() {
+		filterName = '';
+		filterEmail = '';
+		filterNis = '';
+		filterNisn = '';
+		filterClass = '';
+		filterGender = '';
+		filterStatus = '';
+		page = 1;
+	}
+
+	let hasActiveFilter = $derived(
+		!!(filterName || filterEmail || filterNis || filterNisn || filterClass || filterGender || filterStatus)
+	);
+
+	let filteredSiswas = $derived(
+		data.siswas.filter((s) => {
+			if (filterName && !s.name.toLowerCase().includes(filterName.toLowerCase())) return false;
+			if (filterEmail && !s.email.toLowerCase().includes(filterEmail.toLowerCase())) return false;
+			if (filterNis && !(s.nis ?? '').toLowerCase().includes(filterNis.toLowerCase())) return false;
+			if (filterNisn && !(s.nisn ?? '').toLowerCase().includes(filterNisn.toLowerCase())) return false;
+			if (filterClass && (s.class_id == null || String(s.class_id) !== filterClass)) return false;
+			if (filterGender && s.gender !== filterGender) return false;
+			if (filterStatus !== '') {
+				if (s.is_active !== (filterStatus === '1' ? 1 : 0)) return false;
+			}
+			return true;
+		})
+	);
+
+	let paginatedSiswas = $derived(
+		filteredSiswas.slice((page - 1) * pageSize, page * pageSize)
+	);
 
 	// State tambahan untuk form edit (bits-ui Select but value string)
 	let editClassId = $state<string | undefined>(undefined);
@@ -236,15 +282,15 @@
 			<p class="text-sm text-muted-foreground mt-0.5">Kelola data siswa di sekolah Anda</p>
 		</div>
 		{#if canManage}
-			<div class="flex items-center gap-2.5">
-				<Button variant="outline" href="/dashboard/siswa/template" title="Unduh Template Excel">
+			<div class="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-2.5">
+			<Button variant="outline" href="/dashboard/siswa/template" title="Unduh Template Excel" class="min-h-11 sm:min-h-9">
 					<DownloadIcon data-icon="inline-start" class="text-success-foreground" />
 					Unduh Template
 				</Button>
 
 				<Button
 					variant="outline"
-					class="border-success/20 bg-success/10 text-success-foreground hover:bg-success/20 hover:text-success-foreground/90"
+					class="min-h-11 sm:min-h-9 border-success/20 bg-success/10 text-success-foreground hover:bg-success/20 hover:text-success-foreground/90"
 					onclick={() => {
 						resetImport();
 						showImportModal = true;
@@ -254,7 +300,7 @@
 					Impor dari Excel
 				</Button>
 
-				<Button onclick={() => (showAddModal = true)}>
+				<Button onclick={() => (showAddModal = true)} class="min-h-11 sm:min-h-9">
 					<PlusIcon data-icon="inline-start" />
 					Tambah Siswa
 				</Button>
@@ -278,20 +324,182 @@
 				Excel.
 			</CardContent>
 		{:else}
+			<!-- Mobile filter bar -->
+			<div class="md:hidden p-3 border-b border-border bg-muted/20 space-y-2">
+				<div class="flex items-center gap-2">
+					<Input
+						bind:value={filterName}
+						oninput={() => (page = 1)}
+						placeholder="Cari siswa..."
+						class="h-8 text-xs bg-background flex-1"
+					/>
+					{#if hasActiveFilter}
+						<Button variant="ghost" size="sm" class="h-8 px-2 text-xs" onclick={resetFilters}>
+							<RotateCcw class="w-3.5 h-3.5" />
+						</Button>
+					{/if}
+				</div>
+				<div class="grid grid-cols-3 gap-2">
+					<Input
+						bind:value={filterNis}
+						oninput={() => (page = 1)}
+						placeholder="NIS..."
+						class="h-8 text-xs bg-background"
+					/>
+					<select
+						bind:value={filterClass}
+						onchange={() => (page = 1)}
+						class="h-8 rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+					>
+						<option value="">Semua Kelas</option>
+						{#each data.kelas as k (k.id)}
+							<option value={String(k.id)}>{k.name}</option>
+						{/each}
+					</select>
+					<select
+						bind:value={filterStatus}
+						onchange={() => (page = 1)}
+						class="h-8 rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+					>
+						<option value="">Status</option>
+						<option value="1">Aktif</option>
+						<option value="0">Nonaktif</option>
+					</select>
+				</div>
+			</div>
+
+			<!-- Mobile: kartu -->
+			<div class="md:hidden divide-y divide-border">
+				{#each paginatedSiswas as siswa (siswa.id)}
+					<div class="p-4 space-y-2.5">
+						<div class="flex items-start justify-between gap-3">
+							<div class="min-w-0">
+								<p class="font-medium text-foreground truncate">{siswa.name}</p>
+								<p class="text-xs text-muted-foreground break-all">{siswa.email}</p>
+							</div>
+							{#if siswa.is_active}
+								<Badge class="bg-success/10 text-success-foreground shrink-0">Aktif</Badge>
+							{:else}
+								<Badge variant="secondary" class="shrink-0">Nonaktif</Badge>
+							{/if}
+						</div>
+						<div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+							<span>NIS: <span class="font-mono text-foreground">{siswa.nis ?? '—'}</span></span>
+							<span>NISN: <span class="font-mono text-foreground">{siswa.nisn ?? '—'}</span></span>
+							<span>Kelas: <span class="text-foreground font-medium">{siswa.class_name ?? '—'}</span></span>
+							{#if siswa.gender}<span>L/P: {siswa.gender}</span>{/if}
+						</div>
+						{#if canManage}
+							<div class="flex gap-2 pt-0.5">
+								<Button variant="outline" size="sm" class="flex-1 min-h-10" onclick={() => openEdit(siswa)}>
+									<PencilIcon data-icon="inline-start" /> Edit
+								</Button>
+								<Button variant="destructive" size="sm" class="flex-1 min-h-10" onclick={() => (deleteTarget = { id: siswa.id, name: siswa.name })}>
+									<Trash2Icon data-icon="inline-start" /> Hapus
+								</Button>
+							</div>
+						{/if}
+					</div>
+				{/each}
+				{#if filteredSiswas.length === 0}
+					<div class="py-12 text-center text-muted-foreground text-sm">Tidak ada data yang cocok dengan filter.</div>
+				{/if}
+			</div>
+
+			<!-- Desktop: tabel -->
+			<div class="hidden md:block">
 			<Table>
 				<TableHeader>
 					<TableRow>
 						<TableHead class="px-5 py-3">Nama</TableHead>
 						<TableHead class="px-5 py-3">Email</TableHead>
 						<TableHead class="px-5 py-3">NIS</TableHead>
+						<TableHead class="px-5 py-3">NISN</TableHead>
 						<TableHead class="px-5 py-3">Kelas</TableHead>
 						<TableHead class="px-5 py-3">L/P</TableHead>
 						<TableHead class="px-5 py-3">Status</TableHead>
 						{#if canManage}<TableHead class="px-5 py-3 text-right">Aksi</TableHead>{/if}
 					</TableRow>
+					<TableRow class="bg-muted/30">
+						<TableHead class="p-2">
+							<Input
+								bind:value={filterName}
+								oninput={() => (page = 1)}
+								placeholder="Cari nama..."
+								class="h-8 text-xs bg-background"
+							/>
+						</TableHead>
+						<TableHead class="p-2">
+							<Input
+								bind:value={filterEmail}
+								oninput={() => (page = 1)}
+								placeholder="Cari email..."
+								class="h-8 text-xs bg-background"
+							/>
+						</TableHead>
+						<TableHead class="p-2">
+							<Input
+								bind:value={filterNis}
+								oninput={() => (page = 1)}
+								placeholder="Cari NIS..."
+								class="h-8 text-xs bg-background"
+							/>
+						</TableHead>
+						<TableHead class="p-2">
+							<Input
+								bind:value={filterNisn}
+								oninput={() => (page = 1)}
+								placeholder="Cari NISN..."
+								class="h-8 text-xs bg-background"
+							/>
+						</TableHead>
+						<TableHead class="p-2">
+							<select
+								bind:value={filterClass}
+								onchange={() => (page = 1)}
+								class="h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+							>
+								<option value="">Semua</option>
+								{#each data.kelas as k (k.id)}
+									<option value={String(k.id)}>{k.name}</option>
+								{/each}
+							</select>
+						</TableHead>
+						<TableHead class="p-2">
+							<select
+								bind:value={filterGender}
+								onchange={() => (page = 1)}
+								class="h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+							>
+								<option value="">Semua</option>
+								<option value="L">L</option>
+								<option value="P">P</option>
+							</select>
+						</TableHead>
+						<TableHead class="p-2">
+							<select
+								bind:value={filterStatus}
+								onchange={() => (page = 1)}
+								class="h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+							>
+								<option value="">Semua</option>
+								<option value="1">Aktif</option>
+								<option value="0">Nonaktif</option>
+							</select>
+						</TableHead>
+						{#if canManage}
+							<TableHead class="p-2 text-right">
+								{#if hasActiveFilter}
+									<Button variant="ghost" size="sm" class="h-8 px-2 text-xs" onclick={resetFilters} title="Reset filter">
+										<RotateCcw class="w-3.5 h-3.5 mr-1" /> Reset
+									</Button>
+								{/if}
+							</TableHead>
+						{/if}
+					</TableRow>
 				</TableHeader>
 				<TableBody>
-					{#each data.siswas as siswa (siswa.id)}
+					{#each paginatedSiswas as siswa (siswa.id)}
 						<TableRow>
 							<TableCell class="px-5 py-3.5 font-medium">{siswa.name}</TableCell>
 							<TableCell class="px-5 py-3.5 text-muted-foreground text-xs font-mono">
@@ -299,6 +507,9 @@
 							</TableCell>
 							<TableCell class="px-5 py-3.5 text-muted-foreground font-mono text-xs">
 								{siswa.nis ?? '—'}
+							</TableCell>
+							<TableCell class="px-5 py-3.5 text-muted-foreground font-mono text-xs">
+								{siswa.nisn ?? '—'}
 							</TableCell>
 							<TableCell class="px-5 py-3.5 font-medium">{siswa.class_name ?? '—'}</TableCell>
 							<TableCell class="px-5 py-3.5">{siswa.gender ?? '—'}</TableCell>
@@ -333,8 +544,18 @@
 							{/if}
 						</TableRow>
 					{/each}
+					{#if filteredSiswas.length === 0}
+						<TableRow>
+							<TableCell colspan={canManage ? 8 : 7} class="py-12 text-center text-muted-foreground text-sm">
+								Tidak ada data yang cocok dengan filter.
+							</TableCell>
+						</TableRow>
+					{/if}
 				</TableBody>
 			</Table>
+			</div>
+
+			<Pagination bind:page bind:pageSize totalItems={filteredSiswas.length} />
 		{/if}
 	</Card>
 </div>

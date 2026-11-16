@@ -10,7 +10,9 @@
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-		"seed:dummy": "bun scripts/seed-dummy.ts"
+		"seed:dummy": "bun scripts/seed-dummy.ts",
+		"migrate:d1": "bun run scripts/migrate-local-to-d1.ts",
+		"migrate:d1:deploy": "bun run scripts/migrate-local-to-d1.ts --deploy"
 	},
 	"devDependencies": {
 		"@internationalized/date": "^3.12.0",
@@ -35,12 +37,15 @@
 	"dependencies": {
 		"@lucide/svelte": "^1.71.0",
 		"@tailwindcss/vite": "^4.3.3",
+		"@types/sqlite3": "^5.1.0",
 		"bcryptjs": "^3.0.3",
 		"bits-ui": "^2.20.6",
 		"clsx": "^2.1.1",
 		"drizzle-kit": "^0.31.11",
 		"drizzle-orm": "^0.45.4",
 		"lucia": "^3.2.2",
+		"sqlite": "^5.1.1",
+		"sqlite3": "^6.0.1",
 		"sveltekit-superforms": "^3.1.0",
 		"tailwind-merge": "^3.7.0",
 		"tailwind-variants": "^3.3.0",

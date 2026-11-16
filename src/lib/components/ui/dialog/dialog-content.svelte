@@ -28,7 +28,7 @@
 		bind:ref
 		data-slot="dialog-content"
 		class={cn(
-			"bg-popover text-popover-foreground data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 ring-foreground/10 grid max-w-[calc(100%_-_2rem)] gap-4 rounded-xl p-4 text-sm ring-1 duration-100 sm:max-w-sm fixed top-1/2 left-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 outline-none",
+			"bg-popover text-popover-foreground data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 ring-foreground/10 grid gap-4 border border-border p-4 text-sm shadow-xl ring-1 duration-100 fixed inset-x-0 bottom-0 top-auto left-0 right-0 z-50 w-full max-w-full max-h-[90dvh] overflow-y-auto translate-x-0 translate-y-0 rounded-t-2xl rounded-b-none outline-none sm:inset-x-auto sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-w-sm sm:max-h-[85vh] sm:rounded-xl sm:rounded-b-xl",
 			className
 		)}
 		{...restProps}

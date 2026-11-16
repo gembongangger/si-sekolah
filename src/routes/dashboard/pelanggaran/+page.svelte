@@ -3,6 +3,10 @@
 	import { fieldError, hasError } from '$lib/form-helpers';
 	import { zodClient } from 'sveltekit-superforms/adapters/zod4';
 	import { studentViolationSchema, violationTypeSchema } from '$lib/validation/pelanggaran';
+	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { Pagination } from '$lib/components/ui/pagination/index.js';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -49,6 +53,96 @@
 	let activeTab: 'violations' | 'types' | 'summary' = $state('violations');
 	let deleteTarget: { id: number } | null = $state(null);
 
+	// Pagination & filter violations
+	let pageViolations = $state(1);
+	let pageSizeViolations = $state(10);
+	let filterVDate = $state('');
+	let filterVStudent = $state('');
+	let filterVName = $state('');
+	let filterVCategory = $state('');
+	let filterVStatus = $state('');
+
+	let hasActiveVFilter = $derived(
+		Boolean(filterVDate || filterVStudent || filterVName || filterVCategory || filterVStatus)
+	);
+
+	function resetVFilters() {
+		filterVDate = '';
+		filterVStudent = '';
+		filterVName = '';
+		filterVCategory = '';
+		filterVStatus = '';
+		pageViolations = 1;
+	}
+
+	let filteredViolations = $derived(
+		data.violations.filter((v) => {
+			if (filterVDate && !(v.date ?? '').includes(filterVDate.trim())) return false;
+			if (filterVStudent) {
+				const full = `${v.student_name ?? ''} ${v.student_nis ?? ''}`.toLowerCase();
+				if (!full.includes(filterVStudent.toLowerCase())) return false;
+			}
+			if (filterVName && !(v.violation_name ?? '').toLowerCase().includes(filterVName.toLowerCase())) return false;
+			if (filterVCategory && v.violation_category !== filterVCategory) return false;
+			if (filterVStatus && v.status !== filterVStatus) return false;
+			return true;
+		})
+	);
+
+	let paginatedViolations = $derived(
+		filteredViolations.slice((pageViolations - 1) * pageSizeViolations, pageViolations * pageSizeViolations)
+	);
+
+	// Pagination & filter types
+	let pageTypes = $state(1);
+	let pageSizeTypes = $state(10);
+	let filterTypeCode = $state('');
+	let filterTypeName = $state('');
+	let filterTypeCategory = $state('');
+
+	let hasActiveTypeFilter = $derived(
+		Boolean(filterTypeCode || filterTypeName || filterTypeCategory)
+	);
+
+	function resetTypeFilters() {
+		filterTypeCode = '';
+		filterTypeName = '';
+		filterTypeCategory = '';
+		pageTypes = 1;
+	}
+
+	let filteredTypes = $derived(
+		data.allViolationTypes.filter((vt) => {
+			if (filterTypeCode && !(vt.code ?? '').toLowerCase().includes(filterTypeCode.toLowerCase())) return false;
+			if (filterTypeName && !(vt.name ?? '').toLowerCase().includes(filterTypeName.toLowerCase())) return false;
+			if (filterTypeCategory && vt.category !== filterTypeCategory) return false;
+			return true;
+		})
+	);
+
+	let paginatedTypes = $derived(
+		filteredTypes.slice((pageTypes - 1) * pageSizeTypes, pageTypes * pageSizeTypes)
+	);
+
+	// Pagination & filter summary
+	let pageSummary = $state(1);
+	let pageSizeSummary = $state(10);
+	let filterSummaryStudent = $state('');
+
+	let filteredSummary = $derived(
+		data.pointSummaries.filter((ps) => {
+			if (filterSummaryStudent) {
+				const full = `${ps.student_name ?? ''} ${ps.student_nis ?? ''}`.toLowerCase();
+				if (!full.includes(filterSummaryStudent.toLowerCase())) return false;
+			}
+			return true;
+		})
+	);
+
+	let paginatedSummary = $derived(
+		filteredSummary.slice((pageSummary - 1) * pageSizeSummary, pageSummary * pageSizeSummary)
+	);
+
 	// Combobox siswa (pencarian nama/NIS)
 	let siswaQuery = $state('');
 	let siswaOpen = $state(false);
@@ -68,7 +162,7 @@
 
 	function inputCls(err?: unknown) {
 		const hasErr = Array.isArray(err) ? err.length > 0 : (err != null && typeof err === 'object' && '_errors' in err ? !!(err as any)._errors?.length : !!err);
-		return `w-full px-3.5 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-opacity-20 transition-colors ${
+		return `w-full px-3.5 py-2.5 rounded-lg border text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-opacity-20 transition-colors ${
 			hasErr ? 'border-destructive focus:ring-destructive' : 'border-input focus:ring-ring focus:border-ring'
 		}`;
 	}
@@ -103,7 +197,7 @@
 
 <div class="max-w-6xl">
 	<!-- Header -->
-	<div class="flex items-center justify-between mb-6">
+	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
 		<div>
 			<h1 class="text-xl font-bold text-foreground">Poin Pelanggaran Siswa</h1>
 			<p class="text-sm text-muted-foreground mt-0.5">
@@ -114,14 +208,14 @@
 			{#if data.isAdmin}
 				<button
 					onclick={() => (showVtypeModal = true)}
-					class="px-4 py-2 bg-muted hover:bg-muted text-foreground text-sm font-medium rounded-lg transition-colors"
+					class="flex-1 sm:flex-none min-h-11 px-4 py-2 bg-muted hover:bg-muted text-foreground text-sm font-medium rounded-lg transition-colors"
 				>
 					Kelola Jenis
 				</button>
 			{/if}
 			<button
 				onclick={() => (showReportModal = true)}
-				class="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium rounded-lg transition-colors"
+				class="flex-1 sm:flex-none min-h-11 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium rounded-lg transition-colors"
 			>
 				+ Catat Pelanggaran
 			</button>
@@ -130,11 +224,11 @@
 
 	<!-- Tabs (admin only) -->
 	{#if data.isAdmin}
-		<div class="flex gap-1 mb-5 bg-muted p-1 rounded-lg w-fit">
+		<div class="grid grid-cols-3 gap-1 mb-5 bg-muted p-1 rounded-lg sm:flex sm:w-fit">
 			{#each [['violations','Daftar Pelanggaran'],['types','Jenis Pelanggaran'],['summary','Rekap Poin']] as [tab, label]}
 				<button
 					onclick={() => (activeTab = tab as typeof activeTab)}
-					class="px-4 py-1.5 text-sm font-medium rounded-md transition-colors {
+					class="min-h-10 px-2 sm:px-4 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors {
 						activeTab === tab
 							? 'bg-card text-foreground shadow-sm'
 							: 'text-muted-foreground hover:text-foreground'
@@ -152,7 +246,107 @@
 			{#if data.violations.length === 0}
 				<div class="py-16 text-center text-muted-foreground text-sm">Belum ada data pelanggaran.</div>
 			{:else}
-				<div class="overflow-x-auto">
+				<!-- Mobile filter bar -->
+				<div class="md:hidden p-3 bg-muted/30 border-b border-border space-y-2">
+					<div class="grid grid-cols-2 gap-2">
+						<Input
+							placeholder="Cari siswa/NIS..."
+							bind:value={filterVStudent}
+							oninput={() => (pageViolations = 1)}
+							class="h-8 text-xs bg-background"
+						/>
+						<Input
+							placeholder="Cari pelanggaran..."
+							bind:value={filterVName}
+							oninput={() => (pageViolations = 1)}
+							class="h-8 text-xs bg-background"
+						/>
+					</div>
+					<div class="grid grid-cols-2 gap-2">
+						<select
+							bind:value={filterVCategory}
+							onchange={() => (pageViolations = 1)}
+							class="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+						>
+							<option value="">Semua Kategori</option>
+							<option value="ringan">Ringan</option>
+							<option value="sedang">Sedang</option>
+							<option value="berat">Berat</option>
+						</select>
+						<select
+							bind:value={filterVStatus}
+							onchange={() => (pageViolations = 1)}
+							class="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+						>
+							<option value="">Semua Status</option>
+							<option value="pending">Menunggu</option>
+							<option value="verified">Terverifikasi</option>
+							<option value="rejected">Ditolak</option>
+						</select>
+					</div>
+					{#if hasActiveVFilter}
+						<button
+							onclick={resetVFilters}
+							class="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground pt-1"
+						>
+							<RotateCcw class="size-3" /> Reset Filter
+						</button>
+					{/if}
+				</div>
+
+				<!-- Mobile: kartu -->
+				<div class="md:hidden divide-y divide-border">
+					{#if paginatedViolations.length === 0}
+						<div class="py-12 text-center text-muted-foreground text-sm">
+							Tidak ada pelanggaran yang sesuai filter.
+						</div>
+					{:else}
+						{#each paginatedViolations as v (v.id)}
+							<div class="p-4 space-y-2.5">
+								<div class="flex items-start justify-between gap-3">
+									<div class="min-w-0">
+										<p class="font-medium text-foreground truncate">{v.student_name ?? '—'}</p>
+										<p class="text-xs text-muted-foreground">
+											{v.date}{#if v.student_nis} · NIS {v.student_nis}{/if}
+										</p>
+									</div>
+									<span class="shrink-0 text-sm font-bold text-destructive">{v.points_snapshot} poin</span>
+								</div>
+								<div class="flex flex-wrap items-center gap-1.5">
+									<span class="text-sm text-foreground">{v.violation_name ?? '—'}</span>
+									{#if v.violation_category}
+										<span class="inline-flex text-xs font-medium px-2 py-0.5 rounded-full border {categoryColor[v.violation_category] ?? ''}">
+											{categoryLabel[v.violation_category] ?? v.violation_category}
+										</span>
+									{/if}
+									<span class="inline-flex text-xs font-medium px-2 py-0.5 rounded-full border {statusColor[v.status] ?? ''}">
+										{statusLabel[v.status] ?? v.status}
+									</span>
+								</div>
+								{#if v.description}
+									<p class="text-xs text-muted-foreground">{v.description}</p>
+								{/if}
+								<div class="flex items-center gap-2 pt-0.5">
+									{#if data.isAdmin && v.status === 'pending'}
+										<form method="POST" action="?/verify" class="flex gap-2">
+											<input type="hidden" name="id" value={v.id} />
+											<button name="status" value="verified" class="min-h-10 px-3 rounded-lg bg-success/10 text-success-foreground text-sm font-medium">Verifikasi</button>
+											<button name="status" value="rejected" class="min-h-10 px-3 rounded-lg bg-destructive/10 text-destructive text-sm font-medium">Tolak</button>
+										</form>
+									{:else}
+										<button
+											onclick={() => (deleteTarget = { id: v.id })}
+											class="min-h-10 px-3 rounded-lg bg-destructive/10 text-destructive text-sm font-medium inline-flex items-center gap-1.5"
+										><Trash2Icon class="size-4" />Hapus</button>
+									{/if}
+								</div>
+							</div>
+						{/each}
+					{/if}
+				</div>
+
+				<!-- Desktop: tabel -->
+				<div class="hidden md:block overflow-x-auto">
 					<table class="w-full text-sm">
 						<thead class="bg-muted/50 border-b border-border">
 							<tr>
@@ -162,52 +356,128 @@
 								<th class="text-left px-4 py-3 font-medium text-muted-foreground">Kategori</th>
 								<th class="text-center px-4 py-3 font-medium text-muted-foreground">Poin</th>
 								<th class="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
-								<th class="text-right px-4 py-3 font-medium text-muted-foreground">Aksi</th>
+								<th class="text-right px-4 py-3 font-medium text-muted-foreground">
+									{#if hasActiveVFilter}
+										<button onclick={resetVFilters} class="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+											<RotateCcw class="size-3" /> Reset
+										</button>
+									{:else}
+										Aksi
+									{/if}
+								</th>
+							</tr>
+							<tr class="bg-muted/30">
+								<th class="px-2 py-1.5 font-normal">
+									<Input
+										placeholder="Cari tgl..."
+										bind:value={filterVDate}
+										oninput={() => (pageViolations = 1)}
+										class="h-8 text-xs bg-background"
+									/>
+								</th>
+								<th class="px-2 py-1.5 font-normal">
+									<Input
+										placeholder="Cari siswa/NIS..."
+										bind:value={filterVStudent}
+										oninput={() => (pageViolations = 1)}
+										class="h-8 text-xs bg-background"
+									/>
+								</th>
+								<th class="px-2 py-1.5 font-normal">
+									<Input
+										placeholder="Cari pelanggaran..."
+										bind:value={filterVName}
+										oninput={() => (pageViolations = 1)}
+										class="h-8 text-xs bg-background"
+									/>
+								</th>
+								<th class="px-2 py-1.5 font-normal">
+									<select
+										bind:value={filterVCategory}
+										onchange={() => (pageViolations = 1)}
+										class="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+									>
+										<option value="">Semua</option>
+										<option value="ringan">Ringan</option>
+										<option value="sedang">Sedang</option>
+										<option value="berat">Berat</option>
+									</select>
+								</th>
+								<th class="px-2 py-1.5 font-normal"></th>
+								<th class="px-2 py-1.5 font-normal">
+									<select
+										bind:value={filterVStatus}
+										onchange={() => (pageViolations = 1)}
+										class="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+									>
+										<option value="">Semua</option>
+										<option value="pending">Menunggu</option>
+										<option value="verified">Terverifikasi</option>
+										<option value="rejected">Ditolak</option>
+									</select>
+								</th>
+								<th class="px-2 py-1.5 font-normal"></th>
 							</tr>
 						</thead>
 						<tbody class="divide-y divide-border">
-							{#each data.violations as v (v.id)}
-								<tr class="hover:bg-muted/50 transition-colors">
-									<td class="px-4 py-3 text-muted-foreground whitespace-nowrap">{v.date}</td>
-									<td class="px-4 py-3">
-										<p class="font-medium text-foreground">{v.student_name ?? '—'}</p>
-										{#if v.student_nis}<p class="text-xs text-muted-foreground">NIS: {v.student_nis}</p>{/if}
-									</td>
-									<td class="px-4 py-3 text-foreground">
-										<p>{v.violation_name ?? '—'}</p>
-										{#if v.description}<p class="text-xs text-muted-foreground truncate max-w-xs">{v.description}</p>{/if}
-									</td>
-									<td class="px-4 py-3">
-										{#if v.violation_category}
-											<span class="inline-flex text-xs font-medium px-2 py-0.5 rounded-full border {categoryColor[v.violation_category] ?? ''}">
-												{categoryLabel[v.violation_category] ?? v.violation_category}
-											</span>
-										{/if}
-									</td>
-									<td class="px-4 py-3 text-center font-bold text-destructive">{v.points_snapshot}</td>
-									<td class="px-4 py-3">
-										<span class="inline-flex text-xs font-medium px-2 py-0.5 rounded-full border {statusColor[v.status] ?? ''}">
-											{statusLabel[v.status] ?? v.status}
-										</span>
-									</td>
-									<td class="px-4 py-3 text-right">
-										{#if data.isAdmin && v.status === 'pending'}
-											<form method="POST" action="?/verify" class="inline-flex gap-2">
-												<input type="hidden" name="id" value={v.id} />
-												<button name="status" value="verified" class="text-xs text-success-foreground hover:text-success-foreground font-medium">Verifikasi</button>
-												<button name="status" value="rejected" class="text-xs text-destructive hover:text-destructive font-medium">Tolak</button>
-											</form>
-										{:else}
-											<button
-												onclick={() => (deleteTarget = { id: v.id })}
-												class="text-xs text-destructive hover:text-destructive font-medium"
-											>Hapus</button>
-										{/if}
+							{#if paginatedViolations.length === 0}
+								<tr>
+									<td colspan="7" class="py-12 text-center text-muted-foreground text-sm">
+										Tidak ada pelanggaran yang sesuai filter.
 									</td>
 								</tr>
-							{/each}
+							{:else}
+								{#each paginatedViolations as v (v.id)}
+									<tr class="hover:bg-muted/50 transition-colors">
+										<td class="px-4 py-3 text-muted-foreground whitespace-nowrap">{v.date}</td>
+										<td class="px-4 py-3">
+											<p class="font-medium text-foreground">{v.student_name ?? '—'}</p>
+											{#if v.student_nis}<p class="text-xs text-muted-foreground">NIS: {v.student_nis}</p>{/if}
+										</td>
+										<td class="px-4 py-3 text-foreground">
+											<p>{v.violation_name ?? '—'}</p>
+											{#if v.description}<p class="text-xs text-muted-foreground truncate max-w-xs">{v.description}</p>{/if}
+										</td>
+										<td class="px-4 py-3">
+											{#if v.violation_category}
+												<span class="inline-flex text-xs font-medium px-2 py-0.5 rounded-full border {categoryColor[v.violation_category] ?? ''}">
+													{categoryLabel[v.violation_category] ?? v.violation_category}
+												</span>
+											{/if}
+										</td>
+										<td class="px-4 py-3 text-center font-bold text-destructive">{v.points_snapshot}</td>
+										<td class="px-4 py-3">
+											<span class="inline-flex text-xs font-medium px-2 py-0.5 rounded-full border {statusColor[v.status] ?? ''}">
+												{statusLabel[v.status] ?? v.status}
+											</span>
+										</td>
+										<td class="px-4 py-3 text-right">
+											{#if data.isAdmin && v.status === 'pending'}
+												<form method="POST" action="?/verify" class="inline-flex gap-2">
+													<input type="hidden" name="id" value={v.id} />
+													<button name="status" value="verified" class="text-xs text-success-foreground hover:text-success-foreground font-medium min-h-8">Verifikasi</button>
+													<button name="status" value="rejected" class="text-xs text-destructive hover:text-destructive font-medium min-h-8">Tolak</button>
+												</form>
+											{:else}
+												<button
+													onclick={() => (deleteTarget = { id: v.id })}
+													class="inline-flex items-center gap-1 text-xs text-destructive hover:text-destructive font-medium min-h-8"
+												><Trash2Icon class="size-3.5" />Hapus</button>
+											{/if}
+										</td>
+									</tr>
+								{/each}
+							{/if}
 						</tbody>
 					</table>
+				</div>
+
+				<div class="p-4 border-t border-border">
+					<Pagination
+						bind:page={pageViolations}
+						bind:pageSize={pageSizeViolations}
+						totalItems={filteredViolations.length}
+					/>
 				</div>
 			{/if}
 		</div>
@@ -228,38 +498,94 @@
 							<th class="text-left px-4 py-3 font-medium text-muted-foreground">Nama Pelanggaran</th>
 							<th class="text-left px-4 py-3 font-medium text-muted-foreground">Kategori</th>
 							<th class="text-center px-4 py-3 font-medium text-muted-foreground">Poin</th>
-							<th class="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+							<th class="text-left px-4 py-3 font-medium text-muted-foreground">
+								{#if hasActiveTypeFilter}
+									<button onclick={resetTypeFilters} class="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+										<RotateCcw class="size-3" /> Reset
+									</button>
+								{:else}
+									Status
+								{/if}
+							</th>
+						</tr>
+						<tr class="bg-muted/30">
+							<th class="px-2 py-1.5 font-normal">
+								<Input
+									placeholder="Cari kode..."
+									bind:value={filterTypeCode}
+									oninput={() => (pageTypes = 1)}
+									class="h-8 text-xs bg-background"
+								/>
+							</th>
+							<th class="px-2 py-1.5 font-normal">
+								<Input
+									placeholder="Cari nama..."
+									bind:value={filterTypeName}
+									oninput={() => (pageTypes = 1)}
+									class="h-8 text-xs bg-background"
+								/>
+							</th>
+							<th class="px-2 py-1.5 font-normal">
+								<select
+									bind:value={filterTypeCategory}
+									onchange={() => (pageTypes = 1)}
+									class="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+								>
+									<option value="">Semua</option>
+									<option value="ringan">Ringan</option>
+									<option value="sedang">Sedang</option>
+									<option value="berat">Berat</option>
+								</select>
+							</th>
+							<th class="px-2 py-1.5 font-normal"></th>
+							<th class="px-2 py-1.5 font-normal"></th>
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-border">
-						{#each data.allViolationTypes as vt (vt.id)}
-							<tr class="hover:bg-muted/50 transition-colors">
-								<td class="px-4 py-3 font-mono text-xs text-muted-foreground">{vt.code}</td>
-								<td class="px-4 py-3 font-medium text-foreground">
-									{vt.name}
-									{#if vt.description}<p class="text-xs text-muted-foreground">{vt.description}</p>{/if}
-								</td>
-								<td class="px-4 py-3">
-									<span class="inline-flex text-xs font-medium px-2 py-0.5 rounded-full border {categoryColor[vt.category] ?? ''}">
-										{categoryLabel[vt.category] ?? vt.category}
-									</span>
-								</td>
-								<td class="px-4 py-3 text-center font-bold text-destructive">{vt.points}</td>
-								<td class="px-4 py-3">
-									{#if vt.is_active}
-										<span class="inline-flex items-center gap-1 text-xs font-medium text-success-foreground bg-success/10 border border-border px-2 py-0.5 rounded-full">
-											<span class="w-1.5 h-1.5 rounded-full bg-success/100"></span>Aktif
-										</span>
-									{:else}
-										<span class="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground bg-muted border border-border px-2 py-0.5 rounded-full">
-											<span class="w-1.5 h-1.5 rounded-full bg-muted"></span>Nonaktif
-										</span>
-									{/if}
+						{#if paginatedTypes.length === 0}
+							<tr>
+								<td colspan="5" class="py-12 text-center text-muted-foreground text-sm">
+									Tidak ada jenis pelanggaran yang sesuai filter.
 								</td>
 							</tr>
-						{/each}
+						{:else}
+							{#each paginatedTypes as vt (vt.id)}
+								<tr class="hover:bg-muted/50 transition-colors">
+									<td class="px-4 py-3 font-mono text-xs text-muted-foreground">{vt.code}</td>
+									<td class="px-4 py-3 font-medium text-foreground">
+										{vt.name}
+										{#if vt.description}<p class="text-xs text-muted-foreground">{vt.description}</p>{/if}
+									</td>
+									<td class="px-4 py-3">
+										<span class="inline-flex text-xs font-medium px-2 py-0.5 rounded-full border {categoryColor[vt.category] ?? ''}">
+											{categoryLabel[vt.category] ?? vt.category}
+										</span>
+									</td>
+									<td class="px-4 py-3 text-center font-bold text-destructive">{vt.points}</td>
+									<td class="px-4 py-3">
+										{#if vt.is_active}
+											<span class="inline-flex items-center gap-1 text-xs font-medium text-success-foreground bg-success/10 border border-border px-2 py-0.5 rounded-full">
+												<span class="w-1.5 h-1.5 rounded-full bg-success/100"></span>Aktif
+											</span>
+										{:else}
+											<span class="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground bg-muted border border-border px-2 py-0.5 rounded-full">
+												<span class="w-1.5 h-1.5 rounded-full bg-muted"></span>Nonaktif
+											</span>
+										{/if}
+									</td>
+								</tr>
+							{/each}
+						{/if}
 					</tbody>
 				</table>
+
+				<div class="p-4 border-t border-border">
+					<Pagination
+						bind:page={pageTypes}
+						bind:pageSize={pageSizeTypes}
+						totalItems={filteredTypes.length}
+					/>
+				</div>
 			{/if}
 		</div>
 	{/if}
@@ -270,6 +596,14 @@
 			{#if data.pointSummaries.length === 0}
 				<div class="py-16 text-center text-muted-foreground text-sm">Belum ada rekap poin.</div>
 			{:else}
+				<div class="p-3 bg-muted/30 border-b border-border">
+					<Input
+						placeholder="Cari siswa atau NIS..."
+						bind:value={filterSummaryStudent}
+						oninput={() => (pageSummary = 1)}
+						class="h-8 max-w-xs text-xs bg-background"
+					/>
+				</div>
 				<table class="w-full text-sm">
 					<thead class="bg-muted/50 border-b border-border">
 						<tr>
@@ -280,30 +614,47 @@
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-border">
-						{#each data.pointSummaries as ps, i (ps.student_id)}
-							<tr class="hover:bg-muted/50 transition-colors">
-								<td class="px-4 py-3 text-muted-foreground">
-									{#if i === 0}
-										<span class="text-destructive font-bold">#{i + 1}</span>
-									{:else}
-										<span class="text-muted-foreground">#{i + 1}</span>
-									{/if}
-								</td>
-								<td class="px-4 py-3 font-medium text-foreground">{ps.student_name ?? '—'}</td>
-								<td class="px-4 py-3 text-muted-foreground font-mono text-xs">{ps.student_nis ?? '—'}</td>
-								<td class="px-4 py-3 text-center">
-									<span class="inline-flex items-center justify-center min-w-[3rem] px-2.5 py-1 rounded-lg font-bold text-sm {
-										ps.total_points >= 100 ? 'bg-destructive/10 text-destructive' :
-										ps.total_points >= 50 ? 'bg-orange-100 text-orange-700' :
-										'bg-warning/10 text-warning-foreground'
-									}">
-										{ps.total_points}
-									</span>
+						{#if paginatedSummary.length === 0}
+							<tr>
+								<td colspan="4" class="py-12 text-center text-muted-foreground text-sm">
+									Tidak ada siswa yang sesuai filter.
 								</td>
 							</tr>
-						{/each}
+						{:else}
+							{#each paginatedSummary as ps, i (ps.student_id)}
+								{@const rank = (pageSummary - 1) * pageSizeSummary + i + 1}
+								<tr class="hover:bg-muted/50 transition-colors">
+									<td class="px-4 py-3 text-muted-foreground">
+										{#if rank === 1}
+											<span class="text-destructive font-bold">#1</span>
+										{:else}
+											<span class="text-muted-foreground">#{rank}</span>
+										{/if}
+									</td>
+									<td class="px-4 py-3 font-medium text-foreground">{ps.student_name ?? '—'}</td>
+									<td class="px-4 py-3 text-muted-foreground font-mono text-xs">{ps.student_nis ?? '—'}</td>
+									<td class="px-4 py-3 text-center">
+										<span class="inline-flex items-center justify-center min-w-[3rem] px-2.5 py-1 rounded-lg font-bold text-sm {
+											ps.total_points >= 100 ? 'bg-destructive/10 text-destructive' :
+											ps.total_points >= 50 ? 'bg-orange-100 text-orange-700' :
+											'bg-warning/10 text-warning-foreground'
+										}">
+											{ps.total_points}
+										</span>
+									</td>
+								</tr>
+							{/each}
+						{/if}
 					</tbody>
 				</table>
+
+				<div class="p-4 border-t border-border">
+					<Pagination
+						bind:page={pageSummary}
+						bind:pageSize={pageSizeSummary}
+						totalItems={filteredSummary.length}
+					/>
+				</div>
 			{/if}
 		</div>
 	{/if}
@@ -311,16 +662,17 @@
 
 <!-- MODAL CATAT PELANGGARAN -->
 {#if showReportModal}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-		<div class="bg-card rounded-2xl shadow-xl w-full max-w-full sm:max-w-lg p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
-			<div class="flex items-center justify-between mb-5">
+	<div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4">
+		<div class="bg-card shadow-xl w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl max-h-[92vh] flex flex-col">
+			<div class="flex items-center justify-between px-4 sm:px-6 pt-4 sm:pt-6 pb-3 shrink-0">
 				<h2 class="text-lg font-bold text-foreground">Catat Pelanggaran Siswa</h2>
-				<button onclick={() => (showReportModal = false)} class="text-muted-foreground hover:text-muted-foreground">✕</button>
+				<button onclick={() => (showReportModal = false)} class="min-h-11 min-w-11 -mr-2 text-lg text-muted-foreground hover:text-muted-foreground">✕</button>
 			</div>
-			{#if $vMessage}
-				<div class="mb-4 p-3 rounded-lg bg-destructive/10 border border-border text-destructive text-sm">{$vMessage}</div>
-			{/if}
-			<form method="POST" action="?/report" use:vEnhance class="space-y-4">
+			<form method="POST" action="?/report" use:vEnhance class="flex flex-col min-h-0 flex-1">
+				<div class="overflow-y-auto px-4 sm:px-6 pb-4 space-y-4">
+					{#if $vMessage}
+						<div class="p-3 rounded-lg bg-destructive/10 border border-border text-destructive text-sm">{$vMessage}</div>
+					{/if}
 				<div class="relative">
 					<label class="block text-sm font-medium text-foreground mb-1">Siswa *</label>
 					<input
@@ -391,9 +743,10 @@
 					<textarea name="description" bind:value={$vForm.description} rows="3" placeholder="Deskripsi singkat kejadian..." class="{inputCls()} resize-none"></textarea>
 				</div>
 
-				<div class="flex justify-end gap-3 pt-2">
-					<button type="button" onclick={() => (showReportModal = false)} class="px-4 py-2 text-sm text-muted-foreground border border-border hover:bg-muted/50 rounded-lg transition-colors">Batal</button>
-					<button type="submit" disabled={$vSubmitting} class="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 disabled:opacity-50 rounded-lg transition-colors">
+				</div>
+				<div class="shrink-0 border-t border-border px-4 sm:px-6 py-3 flex gap-3 sm:justify-end">
+					<button type="button" onclick={() => (showReportModal = false)} class="flex-1 sm:flex-none min-h-11 px-4 py-2 text-sm text-muted-foreground border border-border hover:bg-muted/50 rounded-lg transition-colors">Batal</button>
+					<button type="submit" disabled={$vSubmitting} class="flex-1 sm:flex-none min-h-11 px-4 py-2 text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 disabled:opacity-50 rounded-lg transition-colors">
 						{$vSubmitting ? 'Menyimpan...' : 'Catat Pelanggaran'}
 					</button>
 				</div>

@@ -17,6 +17,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			id: classes.id,
 			name: classes.name,
 			level: classes.level,
+			room: classes.room,
 			academic_year_id: classes.academic_year_id,
 			homeroom_teacher_id: classes.homeroom_teacher_id,
 			created_at: classes.created_at,
@@ -71,7 +72,7 @@ export const actions: Actions = {
 			return message(form, 'Data tidak valid', { status: 400 });
 		}
 
-		const { academic_year_id, name, level, homeroom_teacher_id } = form.data;
+		const { academic_year_id, name, level, room, homeroom_teacher_id } = form.data;
 
 		// Cek duplikasi nama kelas dalam tahun ajaran yang sama
 		const existing = await db
@@ -95,6 +96,7 @@ export const actions: Actions = {
 			academic_year_id,
 			name,
 			level,
+			room: room || null,
 			homeroom_teacher_id: homeroom_teacher_id || null,
 			created_at: now
 		});
@@ -116,7 +118,7 @@ export const actions: Actions = {
 			return message(form, 'Data tidak valid', { status: 400 });
 		}
 
-		const { academic_year_id, name, level, homeroom_teacher_id } = form.data;
+		const { academic_year_id, name, level, room, homeroom_teacher_id } = form.data;
 
 		const existing = await db
 			.select({ id: classes.id })
@@ -139,16 +141,18 @@ export const actions: Actions = {
 				academic_year_id,
 				name,
 				level,
+				room: room || null,
 				homeroom_teacher_id: homeroom_teacher_id || null
 			})
-			.where(eq(classes.id, id));
+			.where(and(eq(classes.id, id), eq(classes.school_id, schoolId)));
 
 		return message(form, 'Kelas berhasil diperbarui');
 	},
 
 	delete: async ({ request, locals }) => {
-		requireAdminSekolah(locals.user);
+		const user = requireAdminSekolah(locals.user);
 		const db = locals.db;
+		const schoolId = user.schoolId;
 
 		const formData = await request.formData();
 		const id = Number(formData.get('id'));
@@ -157,7 +161,7 @@ export const actions: Actions = {
 		await db
 			.update(classes)
 			.set({ deleted_at: Date.now() })
-			.where(eq(classes.id, id));
+			.where(and(eq(classes.id, id), eq(classes.school_id, schoolId)));
 
 		throw redirect(303, '/dashboard/kelas');
 	}

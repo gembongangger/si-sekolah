@@ -1,6 +1,18 @@
 <script lang="ts">
 	import type { PageData, ActionData } from './$types';
 	import { enhance } from '$app/forms';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { Label } from '$lib/components/ui/label/index.js';
+	import {
+		Dialog,
+		DialogContent,
+		DialogDescription,
+		DialogFooter,
+		DialogHeader,
+		DialogTitle
+	} from '$lib/components/ui/dialog/index.js';
+	import { Select, SelectItem } from '$lib/components/ui/select/index.js';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -57,43 +69,16 @@
 			</p>
 		</div>
 		<div class="flex items-center gap-3">
-			<a
-				href="/dashboard/keuangan"
-				class="px-4 py-2 bg-card border border-input hover:bg-muted/50 text-foreground text-sm font-medium rounded-xl transition-colors shadow-sm"
-			>
-				← Ke Transaksi
-			</a>
-			<button
-				onclick={openAddModal}
-				class="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm rounded-xl transition-colors shadow-sm"
-			>
-				+ Tambah Tarif SPP
-			</button>
+			<Button variant="outline" href="/dashboard/keuangan">← Ke Transaksi</Button>
+			<Button onclick={openAddModal}>+ Tambah Tarif SPP</Button>
 		</div>
 	</div>
 
-	<!-- Nav Tabs -->
-	<div class="border-b border-border">
-		<nav class="flex gap-4">
-			<a
-				href="/dashboard/keuangan"
-				class="py-3 px-1 border-b-2 font-medium text-sm border-transparent text-muted-foreground hover:text-foreground hover:border-input"
-			>
-				Transaksi Pembayaran
-			</a>
-			<a
-				href="/dashboard/keuangan/tarif"
-				class="py-3 px-1 border-b-2 font-medium text-sm border-primary text-primary-foreground"
-			>
-				Pengaturan Tarif & Tagihan
-			</a>
-			<a
-				href="/dashboard/keuangan/laporan"
-				class="py-3 px-1 border-b-2 font-medium text-sm border-transparent text-muted-foreground hover:text-foreground hover:border-input"
-			>
-				Laporan & Rekapitulasi
-			</a>
-		</nav>
+	<!-- Nav Tabs Keuangan -->
+	<div class="grid grid-cols-3 gap-1 mb-5 bg-muted p-1 rounded-lg sm:flex sm:w-fit">
+		<a href="/dashboard/keuangan" class="min-h-10 px-2 sm:px-4 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors flex items-center justify-center text-muted-foreground hover:text-foreground">Transaksi</a>
+		<a href="/dashboard/keuangan/tarif" class="min-h-10 px-2 sm:px-4 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors flex items-center justify-center bg-card text-foreground shadow-sm">Pengaturan Tarif</a>
+		<a href="/dashboard/keuangan/laporan" class="min-h-10 px-2 sm:px-4 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors flex items-center justify-center text-muted-foreground hover:text-foreground">Laporan &amp; Rekap</a>
 	</div>
 
 	<!-- Year Selector & Stats -->
@@ -270,20 +255,14 @@
 <!-- MODAL TAMBAH / EDIT TARIF                                      -->
 <!-- ============================================================== -->
 {#if showAddModal}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-		<div class="bg-card rounded-2xl max-w-md w-full p-6 shadow-xl border border-border">
-			<div class="flex items-center justify-between pb-3 border-b bg-muted mb-4">
-				<h3 class="text-lg font-bold text-foreground">
+	<Dialog bind:open={showAddModal}>
+		<DialogContent class="max-w-md w-full p-4 sm:p-6 max-h-[92vh] overflow-y-auto shadow-xl border border-border">
+			<DialogHeader class="flex items-center justify-between pb-3 border-b border-border mb-4">
+				<DialogTitle class="text-lg font-bold text-foreground">
 					{editSetting ? 'Edit Tarif SPP' : 'Tambah Tarif SPP Tingkat'}
-				</h3>
-				<button
-					onclick={() => (showAddModal = false)}
-					class="text-muted-foreground hover:text-muted-foreground text-xl font-bold"
-				>
-					✕
-				</button>
-			</div>
-
+				</DialogTitle>
+				<Button variant="ghost" size="sm" class="h-6 w-6 p-0" onclick={() => (showAddModal = false)}>✕</Button>
+			</DialogHeader>
 			<form method="POST" action="?/saveTarif" use:enhance={() => {
 				return async ({ update }) => {
 					await update();
@@ -294,64 +273,30 @@
 				{#if editSetting}
 					<input type="hidden" name="setting_id" value={editSetting.id} />
 				{/if}
-
 				<div class="space-y-4">
 					<div>
-						<label class="block text-xs font-semibold text-foreground mb-1">Tingkat Kelas *</label>
-						<select
-							name="level"
-							bind:value={inputLevel}
-							class="w-full text-sm border border-input rounded-lg px-3 py-2 focus:ring-ring focus:border-ring"
-						>
-							<option value="X">Kelas X</option>
-							<option value="XI">Kelas XI</option>
-							<option value="XII">Kelas XII</option>
-							<option value="SEMUA">Semua Tingkat (Umum)</option>
-						</select>
+						<Label>Tingkat Kelas *</Label>
+						<Select type="single" name="level" bind:value={inputLevel}>
+							<SelectItem value="X">Kelas X</SelectItem>
+							<SelectItem value="XI">Kelas XI</SelectItem>
+							<SelectItem value="XII">Kelas XII</SelectItem>
+							<SelectItem value="SEMUA">Semua Tingkat (Umum)</SelectItem>
+						</Select>
 					</div>
-
 					<div>
-						<label class="block text-xs font-semibold text-foreground mb-1">Besaran Tarif (Rp) *</label>
-						<input
-							type="number"
-							name="amount"
-							bind:value={inputAmount}
-							min="0"
-							step="1000"
-							required
-							placeholder="Contoh: 200000"
-							class="w-full text-sm border border-input rounded-lg px-3 py-2 focus:ring-ring focus:border-ring"
-						/>
+						<Label>Besaran Tarif (Rp) *</Label>
+						<Input type="number" name="amount" bind:value={inputAmount} min="0" step="1000" placeholder="Contoh: 200000" />
 					</div>
-
 					<div>
-						<label class="block text-xs font-semibold text-foreground mb-1">Keterangan</label>
-						<input
-							type="text"
-							name="description"
-							bind:value={inputDescription}
-							placeholder="Misal: SPP Bulanan Reguler"
-							class="w-full text-sm border border-input rounded-lg px-3 py-2 focus:ring-ring focus:border-ring"
-						/>
+						<Label>Keterangan</Label>
+						<Input type="text" name="description" bind:value={inputDescription} placeholder="Misal: SPP Bulanan Reguler" />
 					</div>
 				</div>
-
-				<div class="flex items-center justify-end gap-3 mt-6 pt-4 border-t bg-muted">
-					<button
-						type="button"
-						onclick={() => (showAddModal = false)}
-						class="px-4 py-2 border border-input rounded-lg text-sm font-medium text-foreground hover:bg-muted/50"
-					>
-						Batal
-					</button>
-					<button
-						type="submit"
-						class="px-5 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-semibold shadow-sm"
-					>
-						Simpan Tarif
-					</button>
-				</div>
+				<DialogFooter class="gap-3 mt-6 pt-4 border-t border-border">
+					<Button type="button" variant="outline" onclick={() => (showAddModal = false)}>Batal</Button>
+					<Button type="submit">Simpan Tarif</Button>
+				</DialogFooter>
 			</form>
-		</div>
-	</div>
+		</DialogContent>
+	</Dialog>
 {/if}

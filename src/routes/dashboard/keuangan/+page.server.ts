@@ -462,5 +462,88 @@ export const actions: Actions = {
 		});
 
 		return { success: true, message: 'Transaksi pengeluaran berhasil dicatat.' };
+	},
+
+	/**
+	 * Catat pembayaran SPP siswa secara langsung (langsung tanda lunas).
+	 */
+	recordPayment: async ({ request, locals }) => {
+		const user = requireRole(locals.user, 'admin_keuangan', 'admin_sekolah');
+		if (user.schoolId === null) return fail(403, { message: 'Akses ditolak' });
+
+		const db = locals.db;
+		const schoolId = user.schoolId;
+		const data = await request.formData();
+
+		const studentIdRaw = data.get('student_id')?.toString();
+		const monthRaw = data.get('month')?.toString();
+		const academicYearIdRaw = data.get('academic_year_id')?.toString();
+		const paymentDate = data.get('payment_date')?.toString() || new Date().toISOString().slice(0, 10);
+		const paymentMethod = (data.get('payment_method')?.toString() || 'cash') as 'cash' | 'transfer';
+		const notes = data.get('notes')?.toString() || null;
+
+		if (!studentIdRaw || !Number(studentIdRaw)) return fail(400, { message: 'Pilih siswa terlebih dahulu' });
+		if (!monthRaw || isNaN(Number(monthRaw))) return fail(400, { message: 'Bulan wajib diisi' });
+		if (!academicYearIdRaw) return fail(400, { message: 'Tahun ajaran wajib dipilih' });
+
+		const studentId = Number(studentIdRaw);
+		const month = Number(monthRaw);
+		const academicYearId = Number(academicYearIdRaw);
+
+		// Ambil info siswa & kelas
+		const [student] = await db
+			.select({ id: students.id, name: users.name, nis: students.nis, classLevel: classes.level })
+			.from(students)
+			.innerJoin(users, eq(students.user_id, users.id))
+			.leftJoin(classes, eq(students.class_id, classes.id))
+			.where(and(eq(students.id, studentId), eq(students.school_id, schoolId)))
+			.limit(1);
+
+		if (!student) return fail(404, { message: 'Siswa tidak ditemukan di sekolah ini' });
+
+		// Ambil tarif sesuai level kelas & tahun ajaran
+		const [tarif] = await db
+			.select({ amount: sppSettings.amount })
+			.from(sppSettings)
+			.where(and(eq(sppSettings.school_id, schoolId), eq(sppSettings.academic_year_id, academicYearId), eq(sppSettings.level, student.classLevel)))
+			.limit(1);
+
+		if (!tarif) return fail(400, { message: 'Tarif SPP untuk kelas ' + student.classLevel + ' belum diatur di tahun ajaran ini' });
+
+		// Cek apakah sudah ada record pending untuk bulan ini
+		const [existing] = await db
+			.select({ id: sppPayments.id, status: sppPayments.status })
+			.from(sppPayments)
+			.where(and(eq(sppPayments.student_id, studentId), eq(sppPayments.month, month), eq(sppPayments.academic_year_id, academicYearId)))
+			.limit(1);
+
+		const now = Date.now();
+		const dateObj = new Date(paymentDate);
+		const yStr = dateObj.getFullYear().toString();
+		const mStr = String(dateObj.getMonth() + 1).padStart(2, '0');
+		const invoiceNum = `INV/SPP/${yStr}${mStr}/${String(existing?.id ?? Date.now()).padStart(4, '0')}`;
+
+		if (existing) {
+			if (existing.status === 'paid') return fail(400, { message: 'Tagihan bulan ini sudah dibayar' });
+			await db.update(sppPayments).set({
+				status: 'paid', amount_paid: tarif.amount,
+				payment_date: paymentDate, payment_method: paymentMethod,
+				invoice_number: invoiceNum, received_by: user.userId, notes,
+				updated_at: now
+			}).where(eq(sppPayments.id, existing.id));
+		} else {
+			const [created] = await db.insert(sppPayments).values({
+				school_id: schoolId, student_id: studentId,
+				academic_year_id: academicYearId, month, year: dateObj.getFullYear(),
+				month_name: new Intl.DateTimeFormat('id-ID', { month: 'long' }).format(dateObj),
+				amount: tarif.amount, amount_paid: tarif.amount,
+				status: 'paid', payment_date: paymentDate, payment_method: paymentMethod,
+				invoice_number: invoiceNum, received_by: user.userId, notes,
+				created_at: now, updated_at: now
+			}).returning({ id: sppPayments.id });
+			if (!created) return fail(500, { message: 'Gagal membuat record pembayaran' });
+		}
+
+		return { success: true, message: `Pembayaran ${student.name} — bulan ${month} berhasil dicatat.` };
 	}
 };

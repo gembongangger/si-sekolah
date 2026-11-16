@@ -5,6 +5,8 @@
 	import { classSchema } from '$lib/validation/class';
 	import type { PageData } from './$types';
 	import { Button } from '$lib/components/ui/button/index.js';
+import PencilIcon from '@lucide/svelte/icons/pencil';
+	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Card } from '$lib/components/ui/card/index.js';
@@ -25,6 +27,8 @@
 		DialogHeader,
 		DialogTitle
 	} from '$lib/components/ui/dialog/index.js';
+	import { Pagination } from '$lib/components/ui/pagination/index.js';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
 
 	let { data }: { data: PageData } = $props();
 
@@ -44,6 +48,42 @@
 	let editKelas: (typeof data.classes)[0] | null = $state(null);
 	let deleteTarget: { id: number; name: string } | null = $state(null);
 
+	let page = $state(1);
+	let pageSize = $state(10);
+	let filterName = $state('');
+	let filterLevel = $state('');
+	let filterRoom = $state('');
+	let filterYear = $state('');
+	let filterTeacher = $state('');
+
+	function resetFilters() {
+		filterName = '';
+		filterLevel = '';
+		filterRoom = '';
+		filterYear = '';
+		filterTeacher = '';
+		page = 1;
+	}
+
+	let hasActiveFilter = $derived(
+		!!(filterName || filterLevel || filterRoom || filterYear || filterTeacher)
+	);
+
+	let filteredClasses = $derived(
+		data.classes.filter((c) => {
+			if (filterName && !c.name.toLowerCase().includes(filterName.toLowerCase())) return false;
+			if (filterLevel && c.level !== filterLevel) return false;
+			if (filterRoom && !(c.room ?? '').toLowerCase().includes(filterRoom.toLowerCase())) return false;
+			if (filterYear && String(c.academic_year_id) !== filterYear) return false;
+			if (filterTeacher && !(c.homeroom_teacher_name ?? '').toLowerCase().includes(filterTeacher.toLowerCase())) return false;
+			return true;
+		})
+	);
+
+	let paginatedClasses = $derived(
+		filteredClasses.slice((page - 1) * pageSize, page * pageSize)
+	);
+
 	function inputCls(err?: unknown) {
 		const hasErr = Array.isArray(err) ? err.length > 0 : (err != null && typeof err === 'object' && '_errors' in err ? !!(err as any)._errors?.length : !!err);
 		return `w-full px-3.5 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-opacity-20 transition-colors ${
@@ -57,43 +97,183 @@
 </svelte:head>
 
 <div class="max-w-5xl">
-	<div class="flex items-center justify-between mb-6">
+	<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
 		<div>
 			<h1 class="text-xl font-bold text-foreground">Kelas</h1>
 			<p class="text-sm text-muted-foreground mt-0.5">Kelola data kelas per tahun ajaran</p>
 		</div>
-		<Button onclick={() => (showAddModal = true)}>+ Tambah Kelas</Button>
+		<Button onclick={() => (showAddModal = true)} class="min-h-11 w-full sm:w-auto">+ Tambah Kelas</Button>
 	</div>
 
 	<Card>
 		{#if data.classes.length === 0}
 			<div class="py-16 text-center text-muted-foreground text-sm">Belum ada kelas terdaftar.</div>
 		{:else}
+			<!-- Mobile filter bar -->
+			<div class="md:hidden p-3 border-b border-border bg-muted/20 space-y-2">
+				<div class="flex items-center gap-2">
+					<Input
+						bind:value={filterName}
+						oninput={() => (page = 1)}
+						placeholder="Cari kelas..."
+						class="h-8 text-xs bg-background flex-1"
+					/>
+					{#if hasActiveFilter}
+						<Button variant="ghost" size="sm" class="h-8 px-2 text-xs" onclick={resetFilters}>
+							<RotateCcw class="w-3.5 h-3.5" />
+						</Button>
+					{/if}
+				</div>
+				<div class="grid grid-cols-2 gap-2">
+					<Input
+						bind:value={filterLevel}
+						oninput={() => (page = 1)}
+						placeholder="Tingkat (7, 8, 9...)"
+						class="h-8 text-xs bg-background"
+					/>
+					<select
+						bind:value={filterYear}
+						onchange={() => (page = 1)}
+						class="h-8 rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+					>
+						<option value="">Semua Thn Ajaran</option>
+						{#each data.academicYears as y (y.id)}
+							<option value={String(y.id)}>{y.name} ({y.semester})</option>
+						{/each}
+					</select>
+				</div>
+			</div>
+
+			<!-- Mobile: kartu -->
+			<div class="md:hidden divide-y divide-border">
+				{#each paginatedClasses as c (c.id)}
+					<div class="p-4 space-y-2.5">
+						<div class="flex items-start justify-between gap-3">
+							<div class="min-w-0">
+								<p class="font-medium text-foreground truncate">{c.name}</p>
+								<p class="text-xs text-muted-foreground">Tingkat {c.level}</p>
+							</div>
+							{#if c.homeroom_teacher_name}
+								<Badge class="bg-muted border-border text-xs font-medium text-foreground shrink-0">{c.homeroom_teacher_name}</Badge>
+							{/if}
+						</div>
+						<div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+							<span>Ruangan: {c.room ?? '—'}</span>
+							<span>{c.academic_year_name ?? '—'} ({c.academic_year_semester ?? '—'})</span>
+						</div>
+						<div class="flex gap-2 pt-0.5">
+							<Button variant="outline" size="sm" class="flex-1 min-h-10" onclick={() => { editKelas = c; showEditModal = true; }}>
+								<PencilIcon data-icon="inline-start" /> Edit
+							</Button>
+							<Button variant="destructive" size="sm" class="flex-1 min-h-10" onclick={() => { deleteTarget = { id: c.id, name: c.name }; showDeleteModal = true; }}>
+								<Trash2Icon data-icon="inline-start" /> Hapus
+							</Button>
+						</div>
+					</div>
+				{/each}
+				{#if filteredClasses.length === 0}
+					<div class="py-12 text-center text-muted-foreground text-sm">Tidak ada data yang cocok dengan filter.</div>
+				{/if}
+			</div>
+
+			<!-- Desktop: tabel -->
+			<div class="hidden md:block">
 			<Table>
 				<TableHeader>
 					<TableRow>
 						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Nama Kelas</TableHead>
 						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Tingkat</TableHead>
+						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Ruangan</TableHead>
 						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Tahun Ajaran</TableHead>
 						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Wali Kelas</TableHead>
 						<TableHead class="text-right px-5 py-3 font-medium text-muted-foreground">Aksi</TableHead>
 					</TableRow>
+					<TableRow class="bg-muted/30">
+						<TableHead class="p-2">
+							<Input
+								bind:value={filterName}
+								oninput={() => (page = 1)}
+								placeholder="Cari kelas..."
+								class="h-8 text-xs bg-background"
+							/>
+						</TableHead>
+						<TableHead class="p-2">
+							<Input
+								bind:value={filterLevel}
+								oninput={() => (page = 1)}
+								placeholder="Tingkat..."
+								class="h-8 text-xs bg-background"
+							/>
+						</TableHead>
+						<TableHead class="p-2">
+							<Input
+								bind:value={filterRoom}
+								oninput={() => (page = 1)}
+								placeholder="Ruangan..."
+								class="h-8 text-xs bg-background"
+							/>
+						</TableHead>
+						<TableHead class="p-2">
+							<select
+								bind:value={filterYear}
+								onchange={() => (page = 1)}
+								class="h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+							>
+								<option value="">Semua</option>
+								{#each data.academicYears as y (y.id)}
+									<option value={String(y.id)}>{y.name} ({y.semester})</option>
+								{/each}
+							</select>
+						</TableHead>
+						<TableHead class="p-2">
+							<Input
+								bind:value={filterTeacher}
+								oninput={() => (page = 1)}
+								placeholder="Cari wali kelas..."
+								class="h-8 text-xs bg-background"
+							/>
+						</TableHead>
+						<TableHead class="p-2 text-right">
+							{#if hasActiveFilter}
+								<Button variant="ghost" size="sm" class="h-8 px-2 text-xs" onclick={resetFilters} title="Reset filter">
+									<RotateCcw class="w-3.5 h-3.5 mr-1" /> Reset
+								</Button>
+							{/if}
+						</TableHead>
+					</TableRow>
 				</TableHeader>
 				<TableBody class="divide-y divide-border">
-					{#each data.classes as c (c.id)}
+					{#each paginatedClasses as c (c.id)}
 						<TableRow class="hover:bg-accent transition-colors">
 							<TableCell class="px-5 py-3.5 font-medium text-foreground">{c.name}</TableCell>
 							<TableCell class="px-5 py-3.5 text-muted-foreground">{c.level}</TableCell>
+							<TableCell class="px-5 py-3.5 text-muted-foreground">{c.room ?? '—'}</TableCell>
 							<TableCell class="px-5 py-3.5 text-muted-foreground text-sm">{c.academic_year_name ?? '—'} ({c.academic_year_semester ?? '—'})</TableCell>
 							<TableCell class="px-5 py-3.5 text-muted-foreground">{c.homeroom_teacher_name ?? '—'}</TableCell>
 							<TableCell class="px-5 py-3.5 text-right space-x-3">
-								<Button variant="ghost" size="sm" onclick={() => { editKelas = c; showEditModal = true; }}>Edit</Button>
-								<Button variant="destructive" size="sm" onclick={() => { deleteTarget = { id: c.id, name: c.name }; showDeleteModal = true; }}>Hapus</Button>
+								<Button variant="ghost" size="sm" class="text-muted-foreground hover:text-foreground" onclick={() => { editKelas = c; showEditModal = true; }}>
+									<PencilIcon data-icon="inline-start" />
+									Edit
+								</Button>
+								<Button variant="ghost" size="sm" class="text-destructive hover:text-destructive/90" onclick={() => { deleteTarget = { id: c.id, name: c.name }; showDeleteModal = true; }}>
+									<Trash2Icon data-icon="inline-start" />
+									Hapus
+								</Button>
 							</TableCell>
 						</TableRow>
 					{/each}
+					{#if filteredClasses.length === 0}
+						<TableRow>
+							<TableCell colspan={6} class="py-12 text-center text-muted-foreground text-sm">
+								Tidak ada data yang cocok dengan filter.
+							</TableCell>
+						</TableRow>
+					{/if}
 				</TableBody>
 			</Table>
+			</div>
+
+			<Pagination bind:page bind:pageSize totalItems={filteredClasses.length} />
 		{/if}
 	</Card>
 </div>
@@ -131,6 +311,11 @@
 					<Label for="create-level-input">Tingkat *</Label>
 					<Input id="create-level-input" name="level" bind:value={$form.level} type="text" placeholder="Contoh: 10" class={inputCls(hasError($errors.level) ? ['e'] : undefined)} />
 					{#if $errors.level}<p class="mt-1 text-xs text-destructive">{fieldError($errors.level)}</p>{/if}
+				</div>
+				<div>
+					<Label for="create-room-input">Ruangan</Label>
+					<Input id="create-room-input" name="room" bind:value={$form.room} type="text" placeholder="Contoh: Lab IPA / R-101" class={inputCls(hasError($errors.room) ? ['e'] : undefined)} />
+					{#if $errors.room}<p class="mt-1 text-xs text-destructive">{fieldError($errors.room)}</p>{/if}
 				</div>
 				<div>
 					<Label for="create-teacher-select">Wali Kelas</Label>
@@ -179,6 +364,10 @@
 				<div>
 					<Label for="edit-level-input">Tingkat *</Label>
 					<Input id="edit-level-input" name="level" value={c.level} type="text" class={inputCls()} />
+				</div>
+				<div>
+					<Label for="edit-room-input">Ruangan</Label>
+					<Input id="edit-room-input" name="room" value={c.room ?? ''} type="text" class={inputCls()} />
 				</div>
 				<div>
 					<Label for="edit-teacher-select">Wali Kelas</Label>

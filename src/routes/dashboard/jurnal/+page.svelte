@@ -18,6 +18,8 @@
 	} from '$lib/components/ui/table/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert/index.js';
+	import { Pagination } from '$lib/components/ui/pagination/index.js';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
 	import {
 		Dialog,
 		DialogContent,
@@ -46,6 +48,52 @@
 	let showDeleteModal = $state(false);
 	let editJurnal: (typeof data.jurnals)[0] | null = $state(null);
 	let deleteTarget: { id: number; topic: string } | null = $state(null);
+
+	let page = $state(1);
+	let pageSize = $state(10);
+	let filterDate = $state('');
+	let filterClass = $state('');
+	let filterSubject = $state('');
+	let filterTeacher = $state('');
+	let filterTopic = $state('');
+
+	let hasActiveFilter = $derived(
+		Boolean(filterDate || filterClass || filterSubject || filterTeacher || filterTopic)
+	);
+
+	function resetFilters() {
+		filterDate = '';
+		filterClass = '';
+		filterSubject = '';
+		filterTeacher = '';
+		filterTopic = '';
+		page = 1;
+	}
+
+	let filteredJurnals = $derived(
+		data.jurnals.filter((j) => {
+			if (filterDate && !(j.date ?? '').includes(filterDate.trim())) {
+				return false;
+			}
+			if (filterClass && !(j.class_name ?? '').toLowerCase().includes(filterClass.toLowerCase())) {
+				return false;
+			}
+			if (filterSubject && !(j.subject_name ?? '').toLowerCase().includes(filterSubject.toLowerCase())) {
+				return false;
+			}
+			if (!data.isGuru && filterTeacher && !(j.teacher_name ?? '').toLowerCase().includes(filterTeacher.toLowerCase())) {
+				return false;
+			}
+			if (filterTopic && !(j.topic ?? '').toLowerCase().includes(filterTopic.toLowerCase())) {
+				return false;
+			}
+			return true;
+		})
+	);
+
+	let paginatedJurnals = $derived(
+		filteredJurnals.slice((page - 1) * pageSize, page * pageSize)
+	);
 
 	function inputCls(err?: unknown) {
 		const hasErr = Array.isArray(err) ? err.length > 0 : (err != null && typeof err === 'object' && '_errors' in err ? !!(err as any)._errors?.length : !!err);
@@ -83,7 +131,7 @@
 </svelte:head>
 
 <div class="max-w-6xl">
-	<div class="flex items-center justify-between mb-6">
+	<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
 		<div>
 			<h1 class="text-xl font-bold text-foreground">Jurnal Mengajar</h1>
 			<p class="text-sm text-muted-foreground mt-0.5">
@@ -91,7 +139,7 @@
 			</p>
 		</div>
 		{#if data.isGuru}
-			<Button onclick={() => { showAddModal = true; }} variant="default">+ Isi Jurnal</Button>
+			<Button onclick={() => { showAddModal = true; }} variant="default" class="min-h-11 w-full sm:w-auto">+ Isi Jurnal</Button>
 		{/if}
 	</div>
 
@@ -108,53 +156,122 @@
 			<Table>
 				<TableHeader>
 					<TableRow>
-						<TableHead class="px-4 py-3 font-medium text-muted-foreground">Tanggal</TableHead>
+						<TableHead class="px-4 py-3 font-medium text-muted-foreground hidden sm:table-cell">Tanggal</TableHead>
 						<TableHead class="px-4 py-3 font-medium text-muted-foreground">Kelas</TableHead>
 						<TableHead class="px-4 py-3 font-medium text-muted-foreground">Mata Pelajaran</TableHead>
 						{#if !data.isGuru}
 							<TableHead class="px-4 py-3 font-medium text-muted-foreground">Guru</TableHead>
 						{/if}
 						<TableHead class="px-4 py-3 font-medium text-muted-foreground">Topik</TableHead>
-						<TableHead class="text-center px-4 py-3 font-medium text-muted-foreground">Ptm</TableHead>
+						<TableHead class="text-center px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Ptm</TableHead>
 						<TableHead class="px-4 py-3 font-medium text-muted-foreground">Absensi</TableHead>
-						{#if data.isGuru}
-							<TableHead class="text-right px-4 py-3 font-medium text-muted-foreground">Aksi</TableHead>
+						<TableHead class="text-right px-4 py-3 font-medium text-muted-foreground">
+							{#if hasActiveFilter}
+								<Button variant="ghost" size="sm" class="h-7 text-xs text-muted-foreground" onclick={resetFilters}>
+									<RotateCcw class="size-3 mr-1" /> Reset
+								</Button>
+							{:else}
+								{data.isGuru ? 'Aksi' : ''}
+							{/if}
+						</TableHead>
+					</TableRow>
+					<TableRow class="bg-muted/30">
+						<TableHead class="px-2 py-1.5 hidden sm:table-cell">
+							<Input
+								placeholder="Cari tgl..."
+								bind:value={filterDate}
+								oninput={() => (page = 1)}
+								class="h-8 text-xs bg-background"
+							/>
+						</TableHead>
+						<TableHead class="px-2 py-1.5">
+							<Input
+								placeholder="Cari kelas..."
+								bind:value={filterClass}
+								oninput={() => (page = 1)}
+								class="h-8 text-xs bg-background"
+							/>
+						</TableHead>
+						<TableHead class="px-2 py-1.5">
+							<Input
+								placeholder="Cari mapel..."
+								bind:value={filterSubject}
+								oninput={() => (page = 1)}
+								class="h-8 text-xs bg-background"
+							/>
+						</TableHead>
+						{#if !data.isGuru}
+							<TableHead class="px-2 py-1.5">
+								<Input
+									placeholder="Cari guru..."
+									bind:value={filterTeacher}
+									oninput={() => (page = 1)}
+									class="h-8 text-xs bg-background"
+								/>
+							</TableHead>
 						{/if}
+						<TableHead class="px-2 py-1.5">
+							<Input
+								placeholder="Cari topik..."
+								bind:value={filterTopic}
+								oninput={() => (page = 1)}
+								class="h-8 text-xs bg-background"
+							/>
+						</TableHead>
+						<TableHead class="px-2 py-1.5 hidden md:table-cell"></TableHead>
+						<TableHead class="px-2 py-1.5"></TableHead>
+						<TableHead class="px-2 py-1.5"></TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody class="divide-y divide-border">
-					{#each data.jurnals as jurnal (jurnal.id)}
-						{@const att = parseAttendance(jurnal.attendance_summary)}
-						<TableRow class="hover:bg-accent transition-colors">
-							<TableCell class="px-4 py-3 text-muted-foreground whitespace-nowrap">{jurnal.date}</TableCell>
-							<TableCell class="px-4 py-3 font-medium text-foreground">{jurnal.class_name ?? '—'}</TableCell>
-							<TableCell class="px-4 py-3 text-muted-foreground">{jurnal.subject_name ?? '—'}</TableCell>
-							{#if !data.isGuru}
-								<TableCell class="px-4 py-3 text-muted-foreground">{jurnal.teacher_name ?? '—'}</TableCell>
-							{/if}
-							<TableCell class="px-4 py-3 text-foreground max-w-xs">
-								<p class="truncate">{jurnal.topic}</p>
+					{#if paginatedJurnals.length === 0}
+						<TableRow>
+							<TableCell colspan={data.isGuru ? 7 : 8} class="py-12 text-center text-muted-foreground text-sm">
+								Tidak ada data yang sesuai filter.
 							</TableCell>
-							<TableCell class="px-4 py-3 text-center text-muted-foreground">{jurnal.meeting_number}</TableCell>
-							<TableCell class="px-4 py-3 text-xs whitespace-nowrap">
-								<span class="text-success-foreground font-medium">H:{att.hadir}</span>
-								<span class="mx-1 text-muted-foreground">·</span>
-								<span class="text-warning-foreground">S:{att.sakit}</span>
-								<span class="mx-1 text-muted-foreground">·</span>
-								<span class="text-primary-foreground">I:{att.izin}</span>
-								<span class="mx-1 text-muted-foreground">·</span>
-								<span class="text-destructive">A:{att.alfa}</span>
-							</TableCell>
-							{#if data.isGuru}
-								<TableCell class="px-4 py-3 text-right space-x-3">
-									<Button variant="ghost" size="sm" onclick={() => { editJurnal = jurnal; showEditModal = true; }}>Edit</Button>
-									<Button variant="destructive" size="sm" onclick={() => { deleteTarget = { id: jurnal.id, topic: jurnal.topic }; showDeleteModal = true; }}>Hapus</Button>
-								</TableCell>
-							{/if}
 						</TableRow>
-					{/each}
+					{:else}
+						{#each paginatedJurnals as jurnal (jurnal.id)}
+							{@const att = parseAttendance(jurnal.attendance_summary)}
+							<TableRow class="hover:bg-accent transition-colors">
+								<TableCell class="px-4 py-3 text-muted-foreground whitespace-nowrap hidden sm:table-cell">{jurnal.date}</TableCell>
+								<TableCell class="px-4 py-3 font-medium text-foreground">{jurnal.class_name ?? '—'}</TableCell>
+								<TableCell class="px-4 py-3 text-muted-foreground">{jurnal.subject_name ?? '—'}</TableCell>
+								{#if !data.isGuru}
+									<TableCell class="px-4 py-3 text-muted-foreground">{jurnal.teacher_name ?? '—'}</TableCell>
+								{/if}
+								<TableCell class="px-4 py-3 text-foreground max-w-xs">
+									<p class="truncate">{jurnal.topic}</p>
+								</TableCell>
+								<TableCell class="px-4 py-3 text-center text-muted-foreground hidden md:table-cell">{jurnal.meeting_number}</TableCell>
+								<TableCell class="px-4 py-3 text-xs whitespace-nowrap">
+									<span class="text-success-foreground font-medium">H:{att.hadir}</span>
+									<span class="mx-1 text-muted-foreground">·</span>
+									<span class="text-warning-foreground">S:{att.sakit}</span>
+									<span class="mx-1 text-muted-foreground">·</span>
+									<span class="text-primary-foreground">I:{att.izin}</span>
+									<span class="mx-1 text-muted-foreground">·</span>
+									<span class="text-destructive">A:{att.alfa}</span>
+								</TableCell>
+								<TableCell class="px-4 py-3 text-right space-x-3">
+									{#if data.isGuru}
+										<Button variant="ghost" size="sm" onclick={() => { editJurnal = jurnal; showEditModal = true; }}>Edit</Button>
+										<Button variant="destructive" size="sm" onclick={() => { deleteTarget = { id: jurnal.id, topic: jurnal.topic }; showDeleteModal = true; }}>Hapus</Button>
+									{/if}
+								</TableCell>
+							</TableRow>
+						{/each}
+					{/if}
 				</TableBody>
 			</Table>
+
+			<div class="p-4 border-t border-border">
+				<Pagination
+					bind:page
+					bind:pageSize
+					totalItems={filteredJurnals.length}
+				/>
+			</div>
 		{/if}
 	</Card>
 </div>

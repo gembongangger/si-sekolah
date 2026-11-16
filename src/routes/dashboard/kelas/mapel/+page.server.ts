@@ -25,6 +25,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			subject_id: classSubjects.subject_id,
 			teacher_id: classSubjects.teacher_id,
 			academic_year_id: classSubjects.academic_year_id,
+			hours_per_week: classSubjects.hours_per_week,
+			subject_hours_per_week: subjects.hours_per_week,
 			class_name: classes.name,
 			class_level: classes.level,
 			subject_code: subjects.code,
@@ -101,7 +103,7 @@ export const actions: Actions = {
 			return message(form, 'Data tidak valid', { status: 400 });
 		}
 
-		const { class_id, subject_id, teacher_id, academic_year_id } = form.data;
+		const { class_id, subject_id, teacher_id, academic_year_id, hours_per_week } = form.data;
 
 		// Cek duplikasi
 		const existing = await db
@@ -127,6 +129,7 @@ export const actions: Actions = {
 			subject_id,
 			teacher_id,
 			academic_year_id,
+			hours_per_week: hours_per_week ?? null,
 			created_at: now
 		});
 
@@ -147,7 +150,7 @@ export const actions: Actions = {
 			return message(form, 'Data tidak valid', { status: 400 });
 		}
 
-		const { class_id, subject_id, teacher_id, academic_year_id } = form.data;
+		const { class_id, subject_id, teacher_id, academic_year_id, hours_per_week } = form.data;
 
 		const existing = await db
 			.select({ id: classSubjects.id })
@@ -171,16 +174,18 @@ export const actions: Actions = {
 				class_id,
 				subject_id,
 				teacher_id,
-				academic_year_id
+				academic_year_id,
+				hours_per_week: hours_per_week ?? null
 			})
-			.where(eq(classSubjects.id, id));
+			.where(and(eq(classSubjects.id, id), eq(classSubjects.school_id, schoolId)));
 
 		return message(form, 'Relasi kelas-mapel-guru berhasil diperbarui');
 	},
 
 	delete: async ({ request, locals }) => {
-		requireAdminSekolah(locals.user);
+		const user = requireAdminSekolah(locals.user);
 		const db = locals.db;
+		const schoolId = user.schoolId;
 
 		const formData = await request.formData();
 		const id = Number(formData.get('id'));
@@ -189,7 +194,7 @@ export const actions: Actions = {
 		await db
 			.update(classSubjects)
 			.set({ deleted_at: Date.now() })
-			.where(eq(classSubjects.id, id));
+			.where(and(eq(classSubjects.id, id), eq(classSubjects.school_id, schoolId)));
 
 		throw redirect(303, '/dashboard/kelas/mapel');
 	}

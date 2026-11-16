@@ -5,6 +5,8 @@
 	import { academicYearSchema } from '$lib/validation/academic-year';
 	import type { PageData } from './$types';
 	import { Button } from '$lib/components/ui/button/index.js';
+import PencilIcon from '@lucide/svelte/icons/pencil';
+	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Card } from '$lib/components/ui/card/index.js';
@@ -18,6 +20,8 @@
 	} from '$lib/components/ui/table/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert/index.js';
+	import { Pagination } from '$lib/components/ui/pagination/index.js';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
 	import {
 		Dialog,
 		DialogContent,
@@ -46,6 +50,41 @@
 	let editYear: (typeof data.academicYears)[0] | null = $state(null);
 	let deleteTarget: { id: number; name: string } | null = $state(null);
 
+	let page = $state(1);
+	let pageSize = $state(10);
+	let filterName = $state('');
+	let filterSemester = $state('');
+	let filterStatus = $state('');
+
+	let hasActiveFilter = $derived(Boolean(filterName || filterSemester || filterStatus));
+
+	function resetFilters() {
+		filterName = '';
+		filterSemester = '';
+		filterStatus = '';
+		page = 1;
+	}
+
+	let filteredAcademicYears = $derived(
+		data.academicYears.filter((ay) => {
+			if (filterName && !(ay.name ?? '').toLowerCase().includes(filterName.toLowerCase())) {
+				return false;
+			}
+			if (filterSemester && String(ay.semester) !== filterSemester) {
+				return false;
+			}
+			if (filterStatus !== '') {
+				const active = ay.is_active ? 'active' : 'inactive';
+				if (active !== filterStatus) return false;
+			}
+			return true;
+		})
+	);
+
+	let paginatedAcademicYears = $derived(
+		filteredAcademicYears.slice((page - 1) * pageSize, page * pageSize)
+	);
+
 	function inputCls(err?: unknown) {
 		const hasErr = Array.isArray(err) ? err.length > 0 : (err != null && typeof err === 'object' && '_errors' in err ? !!(err as any)._errors?.length : !!err);
 		return `w-full px-3.5 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-opacity-20 transition-colors ${
@@ -59,12 +98,12 @@
 </svelte:head>
 
 <div class="max-w-5xl">
-	<div class="flex items-center justify-between mb-6">
+	<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
 		<div>
 			<h1 class="text-xl font-bold text-foreground">Tahun Ajaran</h1>
 			<p class="text-sm text-muted-foreground mt-0.5">Kelola data tahun ajaran sekolah</p>
 		</div>
-		<Button onclick={() => (showAddModal = true)}>+ Tambah Tahun Ajaran</Button>
+		<Button onclick={() => (showAddModal = true)} class="min-h-11 w-full sm:w-auto">+ Tambah Tahun Ajaran</Button>
 	</div>
 
 	<Card>
@@ -75,33 +114,98 @@
 				<TableHeader>
 					<TableRow>
 						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Nama</TableHead>
-						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Semester</TableHead>
-						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Tanggal Mulai</TableHead>
-						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Tanggal Selesai</TableHead>
+						<TableHead class="px-5 py-3 font-medium text-muted-foreground hidden sm:table-cell">Semester</TableHead>
+						<TableHead class="px-5 py-3 font-medium text-muted-foreground hidden sm:table-cell">Tanggal Mulai</TableHead>
+						<TableHead class="px-5 py-3 font-medium text-muted-foreground hidden sm:table-cell">Tanggal Selesai</TableHead>
 						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Status</TableHead>
-						<TableHead class="text-right px-5 py-3 font-medium text-muted-foreground">Aksi</TableHead>
+						<TableHead class="text-right px-5 py-3 font-medium text-muted-foreground">
+							{#if hasActiveFilter}
+								<Button variant="ghost" size="sm" class="h-7 text-xs text-muted-foreground" onclick={resetFilters}>
+									<RotateCcw class="size-3 mr-1" /> Reset
+								</Button>
+							{:else}
+								Aksi
+							{/if}
+						</TableHead>
+					</TableRow>
+					<TableRow class="bg-muted/30">
+						<TableHead class="px-2 py-1.5">
+							<Input
+								placeholder="Cari tahun..."
+								bind:value={filterName}
+								oninput={() => (page = 1)}
+								class="h-8 text-xs bg-background"
+							/>
+						</TableHead>
+						<TableHead class="px-2 py-1.5 hidden sm:table-cell">
+							<select
+								bind:value={filterSemester}
+								onchange={() => (page = 1)}
+								class="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+							>
+								<option value="">Semua</option>
+								<option value="1">1 (Ganjil)</option>
+								<option value="2">2 (Genap)</option>
+							</select>
+						</TableHead>
+						<TableHead class="px-2 py-1.5 hidden sm:table-cell"></TableHead>
+						<TableHead class="px-2 py-1.5 hidden sm:table-cell"></TableHead>
+						<TableHead class="px-2 py-1.5">
+							<select
+								bind:value={filterStatus}
+								onchange={() => (page = 1)}
+								class="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+							>
+								<option value="">Semua</option>
+								<option value="active">Aktif</option>
+								<option value="inactive">Nonaktif</option>
+							</select>
+						</TableHead>
+						<TableHead class="px-2 py-1.5"></TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody class="divide-y divide-border">
-					{#each data.academicYears as ay (ay.id)}
-						<TableRow class="hover:bg-accent transition-colors">
-							<TableCell class="px-5 py-3.5 font-medium text-foreground">{ay.name}</TableCell>
-							<TableCell class="px-5 py-3.5 text-muted-foreground">{ay.semester}</TableCell>
-							<TableCell class="px-5 py-3.5 text-muted-foreground text-sm">{ay.start_date}</TableCell>
-							<TableCell class="px-5 py-3.5 text-muted-foreground text-sm">{ay.end_date}</TableCell>
-							<TableCell class="px-5 py-3.5">
-								<Badge class={ay.is_active ? 'bg-success/10 text-success-foreground' : 'bg-muted text-muted-foreground'}>
-									{ay.is_active ? 'Aktif' : 'Nonaktif'}
-								</Badge>
-							</TableCell>
-							<TableCell class="px-5 py-3.5 text-right space-x-3">
-								<Button variant="ghost" size="sm" onclick={() => { editYear = ay; showEditModal = true; }}>Edit</Button>
-								<Button variant="destructive" size="sm" onclick={() => { deleteTarget = { id: ay.id, name: ay.name }; showDeleteModal = true; }}>Hapus</Button>
+					{#if paginatedAcademicYears.length === 0}
+						<TableRow>
+							<TableCell colspan={6} class="py-12 text-center text-muted-foreground text-sm">
+								Tidak ada data yang sesuai filter.
 							</TableCell>
 						</TableRow>
-					{/each}
+					{:else}
+						{#each paginatedAcademicYears as ay (ay.id)}
+							<TableRow class="hover:bg-accent transition-colors">
+								<TableCell class="px-5 py-3.5 font-medium text-foreground">{ay.name}</TableCell>
+								<TableCell class="px-5 py-3.5 text-muted-foreground hidden sm:table-cell">{ay.semester}</TableCell>
+								<TableCell class="px-5 py-3.5 text-muted-foreground text-sm hidden sm:table-cell">{ay.start_date}</TableCell>
+								<TableCell class="px-5 py-3.5 text-muted-foreground text-sm hidden sm:table-cell">{ay.end_date}</TableCell>
+								<TableCell class="px-5 py-3.5">
+									<Badge class={ay.is_active ? 'bg-success/10 text-success-foreground' : 'bg-muted text-muted-foreground'}>
+										{ay.is_active ? 'Aktif' : 'Nonaktif'}
+									</Badge>
+								</TableCell>
+								<TableCell class="px-5 py-3.5 text-right space-x-3">
+									<Button variant="ghost" size="sm" class="text-muted-foreground hover:text-foreground" onclick={() => { editYear = ay; showEditModal = true; }}>
+										<PencilIcon data-icon="inline-start" />
+										Edit
+									</Button>
+									<Button variant="ghost" size="sm" class="text-destructive hover:text-destructive/90" onclick={() => { deleteTarget = { id: ay.id, name: ay.name }; showDeleteModal = true; }}>
+										<Trash2Icon data-icon="inline-start" />
+										Hapus
+									</Button>
+								</TableCell>
+							</TableRow>
+						{/each}
+					{/if}
 				</TableBody>
 			</Table>
+
+			<div class="p-4 border-t border-border">
+				<Pagination
+					bind:page
+					bind:pageSize
+					totalItems={filteredAcademicYears.length}
+				/>
+			</div>
 		{/if}
 	</Card>
 </div>

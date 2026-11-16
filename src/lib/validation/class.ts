@@ -4,6 +4,7 @@ export const classSchema = z.object({
 	academic_year_id: z.coerce.number().int().positive('Pilih tahun ajaran'),
 	name: z.string().min(1, 'Nama kelas wajib diisi'),
 	level: z.string().min(1, 'Tingkat wajib diisi'),
+	room: z.string().trim().max(50, 'Nama ruangan maksimal 50 karakter').optional().nullable(),
 	homeroom_teacher_id: z.coerce.number().int().positive().optional().nullable()
 });
 

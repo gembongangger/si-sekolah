@@ -5,6 +5,8 @@
 	import { classSubjectSchema } from '$lib/validation/class-subject';
 	import type { PageData } from './$types';
 	import { Button } from '$lib/components/ui/button/index.js';
+import PencilIcon from '@lucide/svelte/icons/pencil';
+	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Card } from '$lib/components/ui/card/index.js';
@@ -17,6 +19,8 @@
 		TableRow
 	} from '$lib/components/ui/table/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import { Pagination } from '$lib/components/ui/pagination/index.js';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
 	import {
 		Dialog,
 		DialogContent,
@@ -44,6 +48,50 @@
 	let editRelasi: (typeof data.classSubjects)[0] | null = $state(null);
 	let deleteTarget: { id: number; name: string } | null = $state(null);
 
+	let page = $state(1);
+	let pageSize = $state(10);
+	let filterClass = $state('');
+	let filterSubject = $state('');
+	let filterTeacher = $state('');
+	let filterYear = $state('');
+
+	let hasActiveFilter = $derived(
+		Boolean(filterClass || filterSubject || filterTeacher || filterYear)
+	);
+
+	function resetFilters() {
+		filterClass = '';
+		filterSubject = '';
+		filterTeacher = '';
+		filterYear = '';
+		page = 1;
+	}
+
+	let filteredClassSubjects = $derived(
+		data.classSubjects.filter((cs) => {
+			if (filterClass) {
+				const full = `${cs.class_name ?? ''} ${cs.class_level ?? ''}`.toLowerCase();
+				if (!full.includes(filterClass.toLowerCase())) return false;
+			}
+			if (filterSubject) {
+				const full = `${cs.subject_code ?? ''} ${cs.subject_name ?? ''}`.toLowerCase();
+				if (!full.includes(filterSubject.toLowerCase())) return false;
+			}
+			if (filterTeacher && !(cs.teacher_name ?? '').toLowerCase().includes(filterTeacher.toLowerCase())) {
+				return false;
+			}
+			if (filterYear) {
+				const full = `${cs.academic_year_name ?? ''} ${cs.academic_year_semester ?? ''}`.toLowerCase();
+				if (!full.includes(filterYear.toLowerCase())) return false;
+			}
+			return true;
+		})
+	);
+
+	let paginatedClassSubjects = $derived(
+		filteredClassSubjects.slice((page - 1) * pageSize, page * pageSize)
+	);
+
 	function inputCls(err?: unknown) {
 		const hasErr = Array.isArray(err) ? err.length > 0 : (err != null && typeof err === 'object' && '_errors' in err ? !!(err as any)._errors?.length : !!err);
 		return `w-full px-3.5 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-opacity-20 transition-colors ${
@@ -57,14 +105,14 @@
 </svelte:head>
 
 <div class="max-w-6xl">
-	<div class="flex items-center justify-between mb-6">
+	<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
 		<div>
 			<h1 class="text-xl font-bold text-foreground">Kelas & Mata Pelajaran</h1>
 			<p class="text-sm text-muted-foreground mt-0.5">
 				Tentukan siapa guru yang mengajar mata pelajaran apa di kelas mana
 			</p>
 		</div>
-		<Button onclick={() => (showAddModal = true)}>+ Tambah Relasi</Button>
+		<Button onclick={() => (showAddModal = true)} class="min-h-11 w-full sm:w-auto">+ Tambah Relasi</Button>
 	</div>
 
 	<Card>
@@ -76,32 +124,102 @@
 					<TableRow>
 						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Kelas</TableHead>
 						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Mata Pelajaran</TableHead>
+						<TableHead class="px-5 py-3 font-medium text-muted-foreground hidden sm:table-cell">Jam/Minggu</TableHead>
 						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Guru</TableHead>
-						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Tahun Ajaran</TableHead>
-						<TableHead class="text-right px-5 py-3 font-medium text-muted-foreground">Aksi</TableHead>
+						<TableHead class="px-5 py-3 font-medium text-muted-foreground hidden sm:table-cell">Tahun Ajaran</TableHead>
+						<TableHead class="text-right px-5 py-3 font-medium text-muted-foreground">
+							{#if hasActiveFilter}
+								<Button variant="ghost" size="sm" class="h-7 text-xs text-muted-foreground" onclick={resetFilters}>
+									<RotateCcw class="size-3 mr-1" /> Reset
+								</Button>
+							{:else}
+								Aksi
+							{/if}
+						</TableHead>
+					</TableRow>
+					<TableRow class="bg-muted/30">
+						<TableHead class="px-2 py-1.5">
+							<Input
+								placeholder="Cari kelas..."
+								bind:value={filterClass}
+								oninput={() => (page = 1)}
+								class="h-8 text-xs bg-background"
+							/>
+						</TableHead>
+						<TableHead class="px-2 py-1.5">
+							<Input
+								placeholder="Cari mapel / kode..."
+								bind:value={filterSubject}
+								oninput={() => (page = 1)}
+								class="h-8 text-xs bg-background"
+							/>
+						</TableHead>
+						<TableHead class="px-2 py-1.5 hidden sm:table-cell"></TableHead>
+						<TableHead class="px-2 py-1.5">
+							<Input
+								placeholder="Cari guru..."
+								bind:value={filterTeacher}
+								oninput={() => (page = 1)}
+								class="h-8 text-xs bg-background"
+							/>
+						</TableHead>
+						<TableHead class="px-2 py-1.5 hidden sm:table-cell">
+							<Input
+								placeholder="Cari tahun..."
+								bind:value={filterYear}
+								oninput={() => (page = 1)}
+								class="h-8 text-xs bg-background"
+							/>
+						</TableHead>
+						<TableHead class="px-2 py-1.5"></TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody class="divide-y divide-border">
-					{#each data.classSubjects as cs (cs.id)}
-						<TableRow class="hover:bg-accent transition-colors">
-							<TableCell class="px-5 py-3.5 font-medium text-foreground">
-								{cs.class_name} ({cs.class_level})
-							</TableCell>
-							<TableCell class="px-5 py-3.5 text-muted-foreground">
-								[{cs.subject_code}] {cs.subject_name}
-							</TableCell>
-							<TableCell class="px-5 py-3.5 text-muted-foreground">{cs.teacher_name}</TableCell>
-							<TableCell class="px-5 py-3.5 text-muted-foreground text-sm">
-								{cs.academic_year_name} — Semester {cs.academic_year_semester}
-							</TableCell>
-							<TableCell class="px-5 py-3.5 text-right space-x-3">
-								<Button variant="ghost" size="sm" onclick={() => { editRelasi = cs; showEditModal = true; }}>Edit</Button>
-								<Button variant="destructive" size="sm" onclick={() => { deleteTarget = { id: cs.id, name: cs.class_name ?? '—' }; showDeleteModal = true; }}>Hapus</Button>
+					{#if paginatedClassSubjects.length === 0}
+						<TableRow>
+							<TableCell colspan={6} class="py-12 text-center text-muted-foreground text-sm">
+								Tidak ada data yang sesuai filter.
 							</TableCell>
 						</TableRow>
-					{/each}
+					{:else}
+						{#each paginatedClassSubjects as cs (cs.id)}
+							<TableRow class="hover:bg-accent transition-colors">
+								<TableCell class="px-5 py-3.5 font-medium text-foreground">
+									{cs.class_name} ({cs.class_level})
+								</TableCell>
+								<TableCell class="px-5 py-3.5 text-muted-foreground">
+									[{cs.subject_code}] {cs.subject_name}
+								</TableCell>
+								<TableCell class="px-5 py-3.5 text-muted-foreground hidden sm:table-cell">
+									{cs.hours_per_week ?? cs.subject_hours_per_week} jam
+								</TableCell>
+								<TableCell class="px-5 py-3.5 text-muted-foreground">{cs.teacher_name}</TableCell>
+								<TableCell class="px-5 py-3.5 text-muted-foreground text-sm hidden sm:table-cell">
+									{cs.academic_year_name} — Semester {cs.academic_year_semester}
+								</TableCell>
+								<TableCell class="px-5 py-3.5 text-right space-x-3">
+									<Button variant="ghost" size="sm" class="text-muted-foreground hover:text-foreground" onclick={() => { editRelasi = cs; showEditModal = true; }}>
+										<PencilIcon data-icon="inline-start" />
+										Edit
+									</Button>
+									<Button variant="ghost" size="sm" class="text-destructive hover:text-destructive/90" onclick={() => { deleteTarget = { id: cs.id, name: cs.class_name ?? '—' }; showDeleteModal = true; }}>
+										<Trash2Icon data-icon="inline-start" />
+										Hapus
+									</Button>
+								</TableCell>
+							</TableRow>
+						{/each}
+					{/if}
 				</TableBody>
 			</Table>
+
+			<div class="p-4 border-t border-border">
+				<Pagination
+					bind:page
+					bind:pageSize
+					totalItems={filteredClassSubjects.length}
+				/>
+			</div>
 		{/if}
 	</Card>
 </div>
@@ -164,6 +282,11 @@
 						{#if $errors.academic_year_id}<p class="mt-1 text-xs text-destructive">{fieldError($errors.academic_year_id)}</p>{/if}
 					</div>
 				</div>
+				<div>
+					<Label for="create-hours-input">Jam per Minggu</Label>
+					<Input id="create-hours-input" name="hours_per_week" bind:value={$form.hours_per_week} type="number" min="1" max="40" placeholder="Kosongkan = ikut mapel" class={inputCls(hasError($errors.hours_per_week) ? ['e'] : undefined)} />
+					{#if $errors.hours_per_week}<p class="mt-1 text-xs text-destructive">{fieldError($errors.hours_per_week)}</p>{/if}
+				</div>
 				<div class="flex justify-end gap-3 pt-2">
 					<Button type="button" variant="outline" onclick={() => (showAddModal = false)}>Batal</Button>
 					<Button type="submit" disabled={$submitting}>
@@ -225,6 +348,10 @@
 							{/each}
 						</select>
 					</div>
+				</div>
+				<div>
+					<Label for="edit-hours-input">Jam per Minggu</Label>
+					<Input id="edit-hours-input" name="hours_per_week" value={cs.hours_per_week ?? ''} type="number" min="1" max="40" placeholder="Kosongkan = ikut mapel" class={inputCls()} />
 				</div>
 				<div class="flex justify-end gap-3 pt-2">
 					<Button type="button" variant="outline" onclick={() => { editRelasi = null; showEditModal = false; }}>Batal</Button>

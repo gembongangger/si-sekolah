@@ -5,6 +5,8 @@
 	import { sanctionSchema } from '$lib/validation/sanction';
 	import type { PageData } from './$types';
 	import { Button } from '$lib/components/ui/button/index.js';
+import PencilIcon from '@lucide/svelte/icons/pencil';
+	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Card } from '$lib/components/ui/card/index.js';
@@ -18,6 +20,8 @@
 	} from '$lib/components/ui/table/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert/index.js';
+	import { Pagination } from '$lib/components/ui/pagination/index.js';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
 	import {
 		Dialog,
 		DialogContent,
@@ -46,6 +50,35 @@
 	let editSanction: (typeof data.sanctions)[0] | null = $state(null);
 	let deleteTarget: { id: number; name: string } | null = $state(null);
 
+	let page = $state(1);
+	let pageSize = $state(10);
+	let filterName = $state('');
+	let filterAction = $state('');
+
+	let hasActiveFilter = $derived(Boolean(filterName || filterAction));
+
+	function resetFilters() {
+		filterName = '';
+		filterAction = '';
+		page = 1;
+	}
+
+	let filteredSanctions = $derived(
+		data.sanctions.filter((s) => {
+			if (filterName && !(s.name ?? '').toLowerCase().includes(filterName.toLowerCase())) {
+				return false;
+			}
+			if (filterAction && !(s.action ?? '').toLowerCase().includes(filterAction.toLowerCase())) {
+				return false;
+			}
+			return true;
+		})
+	);
+
+	let paginatedSanctions = $derived(
+		filteredSanctions.slice((page - 1) * pageSize, page * pageSize)
+	);
+
 	function inputCls(err?: unknown) {
 		const hasErr = Array.isArray(err) ? err.length > 0 : (err != null && typeof err === 'object' && '_errors' in err ? !!(err as any)._errors?.length : !!err);
 		return `w-full px-3.5 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-opacity-20 transition-colors ${
@@ -59,12 +92,12 @@
 </svelte:head>
 
 <div class="max-w-5xl">
-	<div class="flex items-center justify-between mb-6">
+	<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
 		<div>
 			<h1 class="text-xl font-bold text-foreground">Sanksi</h1>
 			<p class="text-sm text-muted-foreground mt-0.5">Kelola tingkatan sanksi pelanggaran siswa</p>
 		</div>
-		<Button onclick={() => (showAddModal = true)}>+ Tambah Sanksi</Button>
+		<Button onclick={() => (showAddModal = true)} class="min-h-11 w-full sm:w-auto">+ Tambah Sanksi</Button>
 	</div>
 
 	<Card>
@@ -75,27 +108,78 @@
 				<TableHeader>
 					<TableRow>
 						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Nama Sanksi</TableHead>
-						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Poin Min</TableHead>
-						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Poin Max</TableHead>
+						<TableHead class="px-5 py-3 font-medium text-muted-foreground hidden sm:table-cell">Poin Min</TableHead>
+						<TableHead class="px-5 py-3 font-medium text-muted-foreground hidden sm:table-cell">Poin Max</TableHead>
 						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Tindakan</TableHead>
-						<TableHead class="text-right px-5 py-3 font-medium text-muted-foreground">Aksi</TableHead>
+						<TableHead class="text-right px-5 py-3 font-medium text-muted-foreground">
+							{#if hasActiveFilter}
+								<Button variant="ghost" size="sm" class="h-7 text-xs text-muted-foreground" onclick={resetFilters}>
+									<RotateCcw class="size-3 mr-1" /> Reset
+								</Button>
+							{:else}
+								Aksi
+							{/if}
+						</TableHead>
+					</TableRow>
+					<TableRow class="bg-muted/30">
+						<TableHead class="px-2 py-1.5">
+							<Input
+								placeholder="Cari sanksi..."
+								bind:value={filterName}
+								oninput={() => (page = 1)}
+								class="h-8 text-xs bg-background"
+							/>
+						</TableHead>
+						<TableHead class="px-2 py-1.5 hidden sm:table-cell"></TableHead>
+						<TableHead class="px-2 py-1.5 hidden sm:table-cell"></TableHead>
+						<TableHead class="px-2 py-1.5">
+							<Input
+								placeholder="Cari tindakan..."
+								bind:value={filterAction}
+								oninput={() => (page = 1)}
+								class="h-8 text-xs bg-background"
+							/>
+						</TableHead>
+						<TableHead class="px-2 py-1.5"></TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody class="divide-y divide-border">
-					{#each data.sanctions as s (s.id)}
-						<TableRow class="hover:bg-accent transition-colors">
-							<TableCell class="px-5 py-3.5 font-medium text-foreground">{s.name}</TableCell>
-							<TableCell class="px-5 py-3.5 text-muted-foreground">{s.min_points}</TableCell>
-							<TableCell class="px-5 py-3.5 text-muted-foreground">{s.max_points}</TableCell>
-							<TableCell class="px-5 py-3.5 text-muted-foreground text-sm">{s.action}</TableCell>
-							<TableCell class="px-5 py-3.5 text-right space-x-3">
-								<Button variant="ghost" size="sm" onclick={() => { editSanction = s; showEditModal = true; }}>Edit</Button>
-								<Button variant="destructive" size="sm" onclick={() => { deleteTarget = { id: s.id, name: s.name }; showDeleteModal = true; }}>Hapus</Button>
+					{#if paginatedSanctions.length === 0}
+						<TableRow>
+							<TableCell colspan={5} class="py-12 text-center text-muted-foreground text-sm">
+								Tidak ada data yang sesuai filter.
 							</TableCell>
 						</TableRow>
-					{/each}
+					{:else}
+						{#each paginatedSanctions as s (s.id)}
+							<TableRow class="hover:bg-accent transition-colors">
+								<TableCell class="px-5 py-3.5 font-medium text-foreground">{s.name}</TableCell>
+								<TableCell class="px-5 py-3.5 text-muted-foreground hidden sm:table-cell">{s.min_points}</TableCell>
+								<TableCell class="px-5 py-3.5 text-muted-foreground hidden sm:table-cell">{s.max_points}</TableCell>
+								<TableCell class="px-5 py-3.5 text-muted-foreground text-sm">{s.action}</TableCell>
+								<TableCell class="px-5 py-3.5 text-right space-x-3">
+									<Button variant="ghost" size="sm" class="text-muted-foreground hover:text-foreground" onclick={() => { editSanction = s; showEditModal = true; }}>
+										<PencilIcon data-icon="inline-start" />
+										Edit
+									</Button>
+									<Button variant="ghost" size="sm" class="text-destructive hover:text-destructive/90" onclick={() => { deleteTarget = { id: s.id, name: s.name }; showDeleteModal = true; }}>
+										<Trash2Icon data-icon="inline-start" />
+										Hapus
+									</Button>
+								</TableCell>
+							</TableRow>
+						{/each}
+					{/if}
 				</TableBody>
 			</Table>
+
+			<div class="p-4 border-t border-border">
+				<Pagination
+					bind:page
+					bind:pageSize
+					totalItems={filteredSanctions.length}
+				/>
+			</div>
 		{/if}
 	</Card>
 </div>

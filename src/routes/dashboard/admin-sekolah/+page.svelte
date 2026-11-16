@@ -26,6 +26,8 @@
 		DialogHeader,
 		DialogTitle
 	} from '$lib/components/ui/dialog/index.js';
+	import { Pagination } from '$lib/components/ui/pagination/index.js';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
 
 	let { data }: { data: PageData } = $props();
 
@@ -45,6 +47,39 @@
 	let editAdmin: (typeof data.admins)[0] | null = $state(null);
 	let deleteTarget: { id: number; name: string } | null = $state(null);
 
+	let page = $state(1);
+	let pageSize = $state(10);
+	let filterName = $state('');
+	let filterEmail = $state('');
+	let filterSchool = $state('');
+	let filterStatus = $state('');
+
+	function resetFilters() {
+		filterName = '';
+		filterEmail = '';
+		filterSchool = '';
+		filterStatus = '';
+		page = 1;
+	}
+
+	let hasActiveFilter = $derived(!!(filterName || filterEmail || filterSchool || filterStatus));
+
+	let filteredAdmins = $derived(
+		data.admins.filter((admin) => {
+			if (filterName && !admin.name.toLowerCase().includes(filterName.toLowerCase())) return false;
+			if (filterEmail && !admin.email.toLowerCase().includes(filterEmail.toLowerCase())) return false;
+			if (filterSchool && !(admin.school_name ?? '').toLowerCase().includes(filterSchool.toLowerCase())) return false;
+			if (filterStatus !== '') {
+				if (admin.is_active !== (filterStatus === '1' ? 1 : 0)) return false;
+			}
+			return true;
+		})
+	);
+
+	let paginatedAdmins = $derived(
+		filteredAdmins.slice((page - 1) * pageSize, page * pageSize)
+	);
+
 	function inputCls(err?: unknown) {
 		const hasErr = Array.isArray(err) ? err.length > 0 : (err != null && typeof err === 'object' && '_errors' in err ? !!(err as any)._errors?.length : !!err);
 		return `w-full px-3.5 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-opacity-20 transition-colors ${
@@ -58,12 +93,12 @@
 </svelte:head>
 
 <div class="max-w-5xl">
-	<div class="flex items-center justify-between mb-6">
+	<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
 		<div>
 			<h1 class="text-xl font-bold text-foreground">Manajemen Admin Sekolah</h1>
 			<p class="text-sm text-muted-foreground mt-0.5">Kelola akun admin untuk setiap sekolah</p>
 		</div>
-		<Button onclick={() => (showAddModal = true)}>+ Tambah Admin</Button>
+		<Button onclick={() => (showAddModal = true)} class="min-h-11 w-full sm:w-auto">+ Tambah Admin</Button>
 	</div>
 
 	<Card>
@@ -74,18 +109,62 @@
 				<TableHeader>
 					<TableRow>
 						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Nama</TableHead>
-						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Email</TableHead>
-						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Sekolah</TableHead>
+						<TableHead class="px-5 py-3 font-medium text-muted-foreground hidden md:table-cell">Email</TableHead>
+						<TableHead class="px-5 py-3 font-medium text-muted-foreground hidden md:table-cell">Sekolah</TableHead>
 						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Status</TableHead>
 						<TableHead class="text-right px-5 py-3 font-medium text-muted-foreground">Aksi</TableHead>
 					</TableRow>
+					<TableRow class="bg-muted/30">
+						<TableHead class="p-2">
+							<Input
+								bind:value={filterName}
+								oninput={() => (page = 1)}
+								placeholder="Cari nama..."
+								class="h-8 text-xs bg-background"
+							/>
+						</TableHead>
+						<TableHead class="p-2 hidden md:table-cell">
+							<Input
+								bind:value={filterEmail}
+								oninput={() => (page = 1)}
+								placeholder="Cari email..."
+								class="h-8 text-xs bg-background"
+							/>
+						</TableHead>
+						<TableHead class="p-2 hidden md:table-cell">
+							<Input
+								bind:value={filterSchool}
+								oninput={() => (page = 1)}
+								placeholder="Cari sekolah..."
+								class="h-8 text-xs bg-background"
+							/>
+						</TableHead>
+						<TableHead class="p-2">
+							<select
+								bind:value={filterStatus}
+								onchange={() => (page = 1)}
+								class="h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+							>
+								<option value="">Semua</option>
+								<option value="1">Aktif</option>
+								<option value="0">Nonaktif</option>
+							</select>
+						</TableHead>
+						<TableHead class="p-2 text-right">
+							{#if hasActiveFilter}
+								<Button variant="ghost" size="sm" class="h-8 px-2 text-xs" onclick={resetFilters} title="Reset filter">
+									<RotateCcw class="w-3.5 h-3.5 mr-1" /> Reset
+								</Button>
+							{/if}
+						</TableHead>
+					</TableRow>
 				</TableHeader>
 				<TableBody class="divide-y divide-border">
-					{#each data.admins as admin (admin.id)}
+					{#each paginatedAdmins as admin (admin.id)}
 						<TableRow class="hover:bg-accent transition-colors">
 							<TableCell class="px-5 py-3.5 font-medium text-foreground">{admin.name}</TableCell>
-							<TableCell class="px-5 py-3.5 text-muted-foreground">{admin.email}</TableCell>
-							<TableCell class="px-5 py-3.5 text-muted-foreground">{admin.school_name ?? '—'}</TableCell>
+							<TableCell class="px-5 py-3.5 text-muted-foreground hidden md:table-cell">{admin.email}</TableCell>
+							<TableCell class="px-5 py-3.5 text-muted-foreground hidden md:table-cell">{admin.school_name ?? '—'}</TableCell>
 							<TableCell class="px-5 py-3.5">
 								{#if admin.is_active}
 									<Badge class="bg-success/10 text-success-foreground">Aktif</Badge>
@@ -99,8 +178,16 @@
 							</TableCell>
 						</TableRow>
 					{/each}
+					{#if filteredAdmins.length === 0}
+						<TableRow>
+							<TableCell colspan={5} class="py-12 text-center text-muted-foreground text-sm">
+								Tidak ada data yang cocok dengan filter.
+							</TableCell>
+						</TableRow>
+					{/if}
 				</TableBody>
 			</Table>
+			<Pagination bind:page bind:pageSize totalItems={filteredAdmins.length} />
 		{/if}
 	</Card>
 </div>

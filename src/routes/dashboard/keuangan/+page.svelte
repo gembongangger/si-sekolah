@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import type { PageData, ActionData } from './$types';
 	import { enhance } from '$app/forms';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -23,8 +24,9 @@
 		DialogTitle
 	} from '$lib/components/ui/dialog/index.js';
 	import { Select, SelectItem } from '$lib/components/ui/select/index.js';
-	import { Separator } from '$lib/components/ui/separator/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
+	import { Pagination } from '$lib/components/ui/pagination/index.js';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -37,6 +39,7 @@
 	let showPayModal = $state(false);
 	let showReceiptModal = $state(false);
 	let showCancelModal = $state(false);
+	let showRecordPayModal = $state(false);
 	let showExpenseModal = $state(false);
 
 	let selectedPaymentForReceipt = $state<any>(null);
@@ -52,6 +55,24 @@
 
 	// Pay Form States
 	let payStudentId = $state<number | null>(null);
+	// Record Payment State
+	let recordStudentId = $state<number | null>(null);
+	let recordStudentQuery = $state('');
+	let recordStudentOpen = $state(false);
+	const recordSiswaResults = $derived.by(() => {
+		const q = recordStudentQuery.trim().toLowerCase();
+		return q
+			? data.studentOptions ?? [].filter((s: any) =>
+					(s.name ?? '').toLowerCase().includes(q) || String(s.nis ?? '').includes(q)
+			  ).slice(0, 8)
+			: data.studentOptions ?? [].slice(0, 8);
+	});
+	let recordMonth = $state<string>('');
+	let recordYearStr = $state<string>('');
+	let recordPaymentDate = $state(new Date().toISOString().slice(0, 10));
+	let recordPaymentMethod = $state<'cash' | 'transfer'>('cash');
+	let recordNotes = $state('');
+	let recordSubmitting = $state(false);
 	let payPaymentIds = $state<number[]>([]);
 	let payPaymentDate = $state(new Date().toISOString().slice(0, 10));
 	let payPaymentMethod = $state<'cash' | 'transfer'>('cash');
@@ -75,15 +96,64 @@
 		{ value: '6', label: 'Juni' }
 	];
 
-	let filterYear = $state<string[]>(data.filters?.yearId ? [String(data.filters.yearId)] : []);
-	let filterClass = $state<string[]>(data.filters?.classId ? [String(data.filters.classId)] : []);
-	let filterMonth = $state<string[]>(data.filters?.month ? [String(data.filters.month)] : []);
-	let filterStatus = $state<string[]>(data.filters?.status ? [data.filters.status] : ['all']);
+	// Filter States
+	let filterQ = $state(data.filters?.q ?? '');
+	let filterClass = $state(data.filters?.classId ? String(data.filters.classId) : '');
+	let filterMonth = $state(data.filters?.month ? String(data.filters.month) : '');
+	let filterStatus = $state(data.filters?.status && data.filters.status !== 'all' ? data.filters.status : '');
+
+	function resetFilters() {
+		filterQ = '';
+		filterClass = '';
+		filterMonth = '';
+		filterStatus = '';
+		pageAdmin = 1;
+	}
+
+	let hasActiveFilter = $derived(!!(filterQ || filterClass || filterMonth || filterStatus));
+
+	let filteredAdminPayments = $derived(
+		(data.adminPayments ?? []).filter((p: any) => {
+			if (filterQ) {
+				const q = filterQ.toLowerCase();
+				const matchName = (p.studentName ?? '').toLowerCase().includes(q);
+				const matchNis = String(p.studentNis ?? '').toLowerCase().includes(q);
+				const matchInv = (p.invoiceNumber ?? '').toLowerCase().includes(q);
+				if (!matchName && !matchNis && !matchInv) return false;
+			}
+			if (filterClass && String(p.classId) !== filterClass) return false;
+			if (filterMonth && String(p.month) !== filterMonth) return false;
+			if (filterStatus && p.status !== filterStatus) return false;
+			return true;
+		})
+	);
+
+	// Pagination
+	let pageAdmin = $state(1);
+	let pageSizeAdmin = $state(10);
+	let paginatedAdminPayments = $derived(
+		filteredAdminPayments.slice((pageAdmin - 1) * pageSizeAdmin, pageAdmin * pageSizeAdmin)
+	);
+
+	let pageSiswa = $state(1);
+	let pageSizeSiswa = $state(10);
+	let paginatedSiswaPayments = $derived(
+		(data.siswaPayments ?? []).slice((pageSiswa - 1) * pageSizeSiswa, pageSiswa * pageSizeSiswa)
+	);
+
+	let pagePengeluaran = $state(1);
+	let pageSizePengeluaran = $state(10);
+	let paginatedPengeluaran = $derived(
+		(data.pengeluaran ?? []).slice(
+			(pagePengeluaran - 1) * pageSizePengeluaran,
+			pagePengeluaran * pageSizePengeluaran
+		)
+	);
 
 	function toggleSelectAll(event: Event) {
 		const target = event.target as HTMLInputElement;
 		if (target.checked) {
-			selectedTableIds = (data.adminPayments || [])
+			selectedTableIds = (paginatedAdminPayments || [])
 				.filter((p: any) => p.status === 'pending')
 				.map((p: any) => p.id);
 		} else {
@@ -222,29 +292,29 @@
 					<Table class="text-sm">
 						<TableHeader>
 							<TableRow>
-								<TableHead class="px-6 py-3">Bulan</TableHead>
-								<TableHead class="px-6 py-3">Tahun Ajaran</TableHead>
-								<TableHead class="px-6 py-3">Nominal</TableHead>
-								<TableHead class="px-6 py-3">Status</TableHead>
-								<TableHead class="px-6 py-3">Tgl Bayar</TableHead>
-								<TableHead class="px-6 py-3">No. Kuitansi</TableHead>
-								<TableHead class="px-6 py-3 text-right">Aksi</TableHead>
+								<TableHead class="px-4 sm:px-6 py-3">Bulan</TableHead>
+								<TableHead class="px-4 sm:px-6 py-3 hidden sm:table-cell">Tahun Ajaran</TableHead>
+								<TableHead class="px-4 sm:px-6 py-3">Nominal</TableHead>
+								<TableHead class="px-4 sm:px-6 py-3">Status</TableHead>
+								<TableHead class="px-4 sm:px-6 py-3">Tgl Bayar</TableHead>
+								<TableHead class="px-4 sm:px-6 py-3 hidden sm:table-cell">No. Kuitansi</TableHead>
+								<TableHead class="px-4 sm:px-6 py-3 text-right">Aksi</TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody class="divide-y divide-border">
 							{#if data.siswaPayments && data.siswaPayments.length > 0}
-								{#each data.siswaPayments as p}
+								{#each paginatedSiswaPayments as p}
 									<TableRow class="hover:bg-accent">
-										<TableCell class="px-6 py-4 font-semibold text-foreground">
+										<TableCell class="px-4 sm:px-6 py-4 font-semibold text-foreground">
 											{p.monthName} {p.year}
 										</TableCell>
-										<TableCell class="px-6 py-4 text-muted-foreground">
+										<TableCell class="px-4 sm:px-6 py-4 text-muted-foreground hidden sm:table-cell">
 											{p.academicYearName} ({p.academicYearSemester})
 										</TableCell>
-										<TableCell class="px-6 py-4 font-medium text-foreground">
+										<TableCell class="px-4 sm:px-6 py-4 font-medium text-foreground">
 											{formatRupiah(p.amount)}
 										</TableCell>
-										<TableCell class="px-6 py-4">
+										<TableCell class="px-4 sm:px-6 py-4">
 											{#if p.status === 'paid'}
 												<Badge class="bg-success/10 text-success-foreground">
 													✓ Lunas
@@ -255,13 +325,13 @@
 												</Badge>
 											{/if}
 										</TableCell>
-										<TableCell class="px-6 py-4 text-muted-foreground">
+										<TableCell class="px-4 sm:px-6 py-4 text-muted-foreground">
 											{p.paymentDate ?? '-'}
 										</TableCell>
-										<TableCell class="px-6 py-4 font-mono text-xs text-muted-foreground">
+										<TableCell class="px-4 sm:px-6 py-4 font-mono text-xs text-muted-foreground hidden sm:table-cell">
 											{p.invoiceNumber ?? '-'}
 										</TableCell>
-										<TableCell class="px-6 py-4 text-right">
+										<TableCell class="px-4 sm:px-6 py-4 text-right">
 											{#if p.status === 'paid'}
 												<Button
 													variant="outline"
@@ -281,7 +351,7 @@
 								{/each}
 							{:else}
 								<TableRow>
-									<TableCell colspan={7} class="px-6 py-10 text-center text-muted-foreground text-sm">
+									<TableCell colspan={7} class="px-4 sm:px-6 py-10 text-center text-muted-foreground text-sm">
 										Belum ada data tagihan SPP untuk akun Anda.
 									</TableCell>
 								</TableRow>
@@ -289,6 +359,11 @@
 						</TableBody>
 					</Table>
 				</div>
+				<Pagination
+					bind:page={pageSiswa}
+					bind:pageSize={pageSizeSiswa}
+					totalItems={data.siswaPayments?.length ?? 0}
+				/>
 			</CardContent>
 		</Card>
 
@@ -303,35 +378,25 @@
 					Kelola transaksi pembayaran SPP siswa, kuitansi kasir, dan status tagihan bulanan
 				</p>
 			</div>
-			<div class="flex items-center gap-3">
+			<div class="flex flex-wrap gap-2 sm:gap-3">
+				<Button onclick={() => (showRecordPayModal = true)}>
+					<span data-icon="inline-start">✓</span> Catat Pembayaran
+				</Button>
 				<Button onclick={openExpense}>
 					<span data-icon="inline-start">↓</span> Catat Pengeluaran
-				</Button>
-				<Button variant="outline" href="/dashboard/keuangan/tarif">
-					Tarif & Tagihan
-				</Button>
-				<Button variant="outline" href="/dashboard/keuangan/laporan">
-					Laporan & Rekap
 				</Button>
 			</div>
 		</div>
 
 		<!-- Nav Tabs Keuangan -->
-		<Separator />
-		<nav class="flex gap-4 py-2">
-			<Button variant="outline" href="/dashboard/keuangan" class="border-b-2 border-primary text-primary">
-				Transaksi Pembayaran
-			</Button>
-			<Button variant="outline" href="/dashboard/keuangan/tarif" class="border-transparent hover:border-border hover:text-muted-foreground">
-				Pengaturan Tarif & Tagihan
-			</Button>
-			<Button variant="outline" href="/dashboard/keuangan/laporan" class="border-transparent hover:border-border hover:text-muted-foreground">
-				Laporan & Rekapitulasi
-			</Button>
-		</nav>
+		<div class="grid grid-cols-3 gap-1 mb-5 bg-muted p-1 rounded-lg sm:flex sm:w-fit">
+			<a href="/dashboard/keuangan" class="min-h-10 px-2 sm:px-4 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors flex items-center justify-center bg-card text-foreground shadow-sm">Transaksi</a>
+			<a href="/dashboard/keuangan/tarif" class="min-h-10 px-2 sm:px-4 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors flex items-center justify-center text-muted-foreground hover:text-foreground">Pengaturan Tarif</a>
+			<a href="/dashboard/keuangan/laporan" class="min-h-10 px-2 sm:px-4 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors flex items-center justify-center text-muted-foreground hover:text-foreground">Laporan &amp; Rekap</a>
+		</div>
 
 		<!-- Summary Statistics Cards -->
-		<div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
 			<Card class="shadow-sm">
 				<CardContent class="p-5">
 					<div class="flex items-center justify-between">
@@ -418,80 +483,9 @@
 
 		</div>
 
-		<!-- Filter & Search Bar -->
-		<Card>
-			<CardContent class="p-4">
-				<form method="GET" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 items-end">
-					<!-- Tahun Ajaran -->
-					<div>
-						<Label for="filter-year-id">Tahun Ajaran</Label>
-						<select id="filter-year-id" name="year_id" class="w-full text-sm border border-input rounded-lg px-3 py-2 focus:ring-ring focus:border-ring">
-							<option value="">— Semua Tahun Ajaran —</option>
-							{#each data.allYears as y}
-								<option value={y.id} selected={filterYear.includes(String(y.id))}>
-									{y.name} ({y.semester}) {y.isActive ? '★' : ''}
-								</option>
-							{/each}
-						</select>
-					</div>
-
-					<!-- Kelas -->
-					<div>
-						<Label for="filter-class-id">Kelas</Label>
-						<select id="filter-class-id" name="class_id" class="w-full text-sm border border-input rounded-lg px-3 py-2 focus:ring-ring focus:border-ring">
-							<option value="">Semua Kelas</option>
-							{#each data.allClasses as c}
-								<option value={c.id} selected={filterClass.includes(String(c.id))}>
-									{c.name}
-								</option>
-							{/each}
-						</select>
-					</div>
-
-					<!-- Bulan -->
-					<div>
-						<Label for="filter-month">Bulan</Label>
-						<select id="filter-month" name="month" class="w-full text-sm border border-input rounded-lg px-3 py-2 focus:ring-ring focus:border-ring">
-							<option value="">Semua Bulan</option>
-							{#each MONTHS as m}
-								<option value={m.value} selected={filterMonth.includes(m.value)}>
-									{m.label}
-								</option>
-							{/each}
-						</select>
-					</div>
-
-					<!-- Status -->
-					<div>
-						<Label for="filter-status">Status</Label>
-						<select id="filter-status" name="status" class="w-full text-sm border border-input rounded-lg px-3 py-2 focus:ring-ring focus:border-ring">
-							<option value="all" selected={filterStatus.includes('all')}>Semua Status</option>
-							<option value="paid" selected={filterStatus.includes('paid')}>Lunas</option>
-							<option value="pending" selected={filterStatus.includes('pending')}>Belum Lunas</option>
-						</select>
-					</div>
-
-					<!-- Cari & Submit -->
-					<div class="flex gap-2">
-						<Input
-							id="filter-q"
-							name="q"
-							type="text"
-							value={data.filters?.q ?? ''}
-							placeholder="Cari siswa / NIS..."
-							class="w-full"
-						/>
-						<Button type="submit">
-							Filter
-						</Button>
-					</div>
-				</form>
-			</CardContent>
-		</Card>
-
 		<!-- Action bar if items selected -->
 		{#if selectedTableIds.length > 0}
-			<Card class="bg-success/10 border border-success/20 p-4 flex items-center justify-between">
+			<Card class="bg-success/10 border border-success/20 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 				<p class="text-sm font-medium text-success-foreground">
 					{selectedTableIds.length} tagihan SPP terpilih
 				</p>
@@ -503,15 +497,87 @@
 
 		<!-- Tabel Transaksi Pembayaran -->
 		<Card>
-			<CardHeader class="border-b border-border py-4 flex items-center justify-between">
-				<CardTitle class="text-base font-semibold text-foreground">
-					Daftar Tagihan & Pembayaran SPP
-				</CardTitle>
-				<span class="text-xs text-muted-foreground">
-					Menampilkan {data.adminPayments?.length ?? 0} transaksi
-				</span>
+			<CardHeader class="border-b border-border py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+				<div>
+					<CardTitle class="text-base font-semibold text-foreground">
+						Daftar Tagihan & Pembayaran SPP
+					</CardTitle>
+					<p class="text-xs text-muted-foreground mt-0.5">
+						Menampilkan {filteredAdminPayments.length} transaksi
+					</p>
+				</div>
+				<div class="flex items-center gap-2">
+					<Label for="filter-year-select" class="text-xs text-muted-foreground whitespace-nowrap">Tahun Ajaran:</Label>
+					<select
+						id="filter-year-select"
+						value={data.selectedYearId ? String(data.selectedYearId) : ''}
+						onchange={(e) => {
+							const val = (e.target as HTMLSelectElement).value;
+							const u = new URL(window.location.href);
+							if (val) u.searchParams.set('year_id', val);
+							else u.searchParams.delete('year_id');
+							goto(u.toString());
+						}}
+						class="h-8 rounded-md border border-input bg-background px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+					>
+						<option value="">— Semua Tahun Ajaran —</option>
+						{#each data.allYears as y}
+							<option value={String(y.id)}>
+								{y.name} ({y.semester}) {y.isActive ? '★' : ''}
+							</option>
+						{/each}
+					</select>
+				</div>
 			</CardHeader>
 			<CardContent class="p-0">
+				<!-- Mobile filter bar -->
+				<div class="md:hidden p-3 border-b border-border bg-muted/20 space-y-2">
+					<div class="flex items-center gap-2">
+						<Input
+							bind:value={filterQ}
+							oninput={() => (pageAdmin = 1)}
+							placeholder="Cari siswa / NIS / invoice..."
+							class="h-8 text-xs bg-background flex-1"
+						/>
+						{#if hasActiveFilter}
+							<Button variant="ghost" size="sm" class="h-8 px-2 text-xs" onclick={resetFilters}>
+								<RotateCcw class="w-3.5 h-3.5" />
+							</Button>
+						{/if}
+					</div>
+					<div class="grid grid-cols-3 gap-2">
+						<select
+							bind:value={filterClass}
+							onchange={() => (pageAdmin = 1)}
+							class="h-8 rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+						>
+							<option value="">Semua Kelas</option>
+							{#each data.allClasses as c}
+								<option value={String(c.id)}>{c.name}</option>
+							{/each}
+						</select>
+						<select
+							bind:value={filterMonth}
+							onchange={() => (pageAdmin = 1)}
+							class="h-8 rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+						>
+							<option value="">Semua Bulan</option>
+							{#each MONTHS as m}
+								<option value={m.value}>{m.label}</option>
+							{/each}
+						</select>
+						<select
+							bind:value={filterStatus}
+							onchange={() => (pageAdmin = 1)}
+							class="h-8 rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+						>
+							<option value="">Semua Status</option>
+							<option value="paid">Lunas</option>
+							<option value="pending">Belum Lunas</option>
+						</select>
+					</div>
+				</div>
+
 				<div class="overflow-x-auto">
 					<Table class="text-sm">
 						<TableHeader>
@@ -520,22 +586,82 @@
 									<input
 										type="checkbox"
 										onchange={toggleSelectAll}
+										checked={paginatedAdminPayments.some((p: any) => p.status === 'pending') &&
+											paginatedAdminPayments
+												.filter((p: any) => p.status === 'pending')
+												.every((p: any) => selectedTableIds.includes(p.id))}
 										class="rounded border-input text-primary-foreground focus:ring-ring"
 									/>
 								</TableHead>
 								<TableHead class="px-4 py-3">Siswa</TableHead>
-								<TableHead class="px-4 py-3">Kelas</TableHead>
+								<TableHead class="px-4 py-3 hidden sm:table-cell">Kelas</TableHead>
 								<TableHead class="px-4 py-3">Bulan</TableHead>
 								<TableHead class="px-4 py-3">Nominal</TableHead>
 								<TableHead class="px-4 py-3">Status</TableHead>
-								<TableHead class="px-4 py-3">Tgl Bayar / Kasir</TableHead>
-								<TableHead class="px-4 py-3">No. Kuitansi</TableHead>
+								<TableHead class="px-4 py-3 hidden sm:table-cell">Tgl Bayar / Kasir</TableHead>
+								<TableHead class="px-4 py-3 hidden sm:table-cell">No. Kuitansi</TableHead>
 								<TableHead class="px-4 py-3 text-right">Aksi</TableHead>
+							</TableRow>
+							<TableRow class="bg-muted/30">
+								<TableHead class="p-2"></TableHead>
+								<TableHead class="p-2">
+									<Input
+										bind:value={filterQ}
+										oninput={() => (pageAdmin = 1)}
+										placeholder="Cari siswa / NIS..."
+										class="h-8 text-xs bg-background"
+									/>
+								</TableHead>
+								<TableHead class="p-2 hidden sm:table-cell">
+									<select
+										bind:value={filterClass}
+										onchange={() => (pageAdmin = 1)}
+										class="h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+									>
+										<option value="">Semua Kelas</option>
+										{#each data.allClasses as c}
+											<option value={String(c.id)}>{c.name}</option>
+										{/each}
+									</select>
+								</TableHead>
+								<TableHead class="p-2">
+									<select
+										bind:value={filterMonth}
+										onchange={() => (pageAdmin = 1)}
+										class="h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+									>
+										<option value="">Semua Bulan</option>
+										{#each MONTHS as m}
+											<option value={m.value}>{m.label}</option>
+										{/each}
+									</select>
+								</TableHead>
+								<TableHead class="p-2"></TableHead>
+								<TableHead class="p-2">
+									<select
+										bind:value={filterStatus}
+										onchange={() => (pageAdmin = 1)}
+										class="h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+									>
+										<option value="">Semua</option>
+										<option value="paid">Lunas</option>
+										<option value="pending">Belum Lunas</option>
+									</select>
+								</TableHead>
+								<TableHead class="p-2 hidden sm:table-cell"></TableHead>
+								<TableHead class="p-2 hidden sm:table-cell"></TableHead>
+								<TableHead class="p-2 text-right">
+									{#if hasActiveFilter}
+										<Button variant="ghost" size="sm" class="h-8 px-2 text-xs" onclick={resetFilters} title="Reset filter">
+											<RotateCcw class="w-3.5 h-3.5 mr-1" /> Reset
+										</Button>
+									{/if}
+								</TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody class="divide-y divide-border">
 							{#if data.adminPayments && data.adminPayments.length > 0}
-								{#each data.adminPayments as p}
+								{#each paginatedAdminPayments as p}
 									<TableRow class="hover:bg-accent">
 										<td class="px-4 py-4 text-center">
 											{#if p.status === 'pending'}
@@ -561,7 +687,7 @@
 												NIS: {p.studentNis ?? '-'}
 											</p>
 										</td>
-										<td class="px-4 py-4 text-muted-foreground font-medium">
+										<td class="px-4 py-4 text-muted-foreground font-medium hidden sm:table-cell">
 											{p.className ?? '-'}
 										</td>
 										<td class="px-4 py-4 font-medium text-foreground">
@@ -581,7 +707,7 @@
 												</Badge>
 											{/if}
 										</td>
-										<td class="px-4 py-4 text-xs text-muted-foreground">
+										<td class="px-4 py-4 text-xs text-muted-foreground hidden sm:table-cell">
 											{#if p.status === 'paid'}
 												<p class="font-medium text-foreground">
 													{p.paymentDate ?? '-'}
@@ -593,7 +719,7 @@
 												<span class="text-muted-foreground">-</span>
 											{/if}
 										</td>
-										<td class="px-4 py-4 font-mono text-xs text-muted-foreground">
+										<td class="px-4 py-4 font-mono text-xs text-muted-foreground hidden sm:table-cell">
 											{p.invoiceNumber ?? '-'}
 										</td>
 										<td class="px-4 py-4 text-right">
@@ -627,7 +753,7 @@
 								{/each}
 							{:else}
 								<TableRow>
-									<td colspan="9" class="px-6 py-12 text-center text-muted-foreground text-sm">
+									<td colspan="9" class="px-4 sm:px-6 py-12 text-center text-muted-foreground text-sm">
 										Tidak ada data tagihan SPP yang sesuai dengan filter.
 									</td>
 								</TableRow>
@@ -635,6 +761,11 @@
 						</TableBody>
 					</Table>
 				</div>
+				<Pagination
+					bind:page={pageAdmin}
+					bind:pageSize={pageSizeAdmin}
+					totalItems={filteredAdminPayments.length}
+				/>
 			</CardContent>
 		</Card>
 	{/if}
@@ -655,27 +786,27 @@
 					<table class="w-full text-sm text-muted-foreground">
 						<thead class="bg-muted/50 text-xs uppercase font-semibold text-muted-foreground border-b border-border">
 							<tr>
-								<th class="px-6 py-3 text-left">Tanggal</th>
-								<th class="px-6 py-3 text-left">Kategori</th>
-								<th class="px-6 py-3 text-left">Keterangan</th>
-								<th class="px-6 py-3 text-left">Catatan</th>
-								<th class="px-6 py-3 text-left">Dibuat Oleh</th>
-								<th class="px-6 py-3 text-right">Nominal</th>
+								<th class="px-4 sm:px-6 py-3 text-left">Tanggal</th>
+								<th class="px-4 sm:px-6 py-3 text-left">Kategori</th>
+								<th class="px-4 sm:px-6 py-3 text-left">Keterangan</th>
+								<th class="px-4 sm:px-6 py-3 text-left hidden sm:table-cell">Catatan</th>
+								<th class="px-4 sm:px-6 py-3 text-left hidden sm:table-cell">Dibuat Oleh</th>
+								<th class="px-4 sm:px-6 py-3 text-right">Nominal</th>
 							</tr>
 						</thead>
 						<tbody class="divide-y divide-border">
-							{#each data.pengeluaran as tx}
+							{#each paginatedPengeluaran as tx}
 								<tr class="hover:bg-accent">
-									<td class="px-6 py-4 text-xs font-medium text-foreground">{tx.date}</td>
-									<td class="px-6 py-4">
+									<td class="px-4 sm:px-6 py-4 text-xs font-medium text-foreground">{tx.date}</td>
+									<td class="px-4 sm:px-6 py-4">
 										<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-destructive/10 text-destructive">
 											{tx.category || 'Umum'}
 										</span>
 									</td>
-									<td class="px-6 py-4 font-medium text-foreground">{tx.description}</td>
-									<td class="px-6 py-4 text-xs text-muted-foreground">{tx.notes ?? '-'}</td>
-									<td class="px-6 py-4 text-xs">{tx.createdByName ?? 'Admin'}</td>
-									<td class="px-6 py-4 text-right font-bold text-destructive">
+									<td class="px-4 sm:px-6 py-4 font-medium text-foreground">{tx.description}</td>
+									<td class="px-4 sm:px-6 py-4 text-xs text-muted-foreground hidden sm:table-cell">{tx.notes ?? '-'}</td>
+									<td class="px-4 sm:px-6 py-4 text-xs hidden sm:table-cell">{tx.createdByName ?? 'Admin'}</td>
+									<td class="px-4 sm:px-6 py-4 text-right font-bold text-destructive">
 										−{formatRupiah(tx.amount)}
 									</td>
 								</tr>
@@ -683,6 +814,11 @@
 						</tbody>
 					</table>
 				</div>
+				<Pagination
+					bind:page={pagePengeluaran}
+					bind:pageSize={pageSizePengeluaran}
+					totalItems={data.pengeluaran?.length ?? 0}
+				/>
 			</CardContent>
 		</Card>
 	{/if}
@@ -694,7 +830,7 @@
 <!-- ============================================================== -->
 {#if showPayModal}
 	<Dialog bind:open={showPayModal}>
-		<DialogContent class="max-w-lg w-full p-6 shadow-xl border border-border">
+		<DialogContent class="max-w-lg w-full p-4 sm:p-6 max-h-[92vh] overflow-y-auto shadow-xl border border-border">
 			<DialogHeader class="flex items-center justify-between pb-3 border-b border-border mb-4">
 				<DialogTitle class="text-lg font-bold text-foreground">
 					Konfirmasi Pembayaran SPP
@@ -736,7 +872,7 @@
 						<select
 							name="payment_method"
 							bind:value={payPaymentMethod}
-							class="w-full text-sm border border-input rounded-lg px-3 py-2 focus:ring-ring focus:border-ring"
+							class="w-full text-base sm:text-sm border border-input rounded-lg px-3 py-2 min-h-11 focus:ring-ring focus:border-ring"
 						>
 							<option value="cash">Tunai (Cash di Kasir)</option>
 							<option value="transfer">Transfer Bank</option>
@@ -754,7 +890,7 @@
 					</div>
 				</div>
 
-				<div class="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-border">
+				<div class="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end mt-6 pt-4 border-t border-border">
 					<Button type="button" variant="outline" onclick={() => (showPayModal = false)}>
 						Batal
 					</Button>
@@ -772,7 +908,7 @@
 <!-- ============================================================== -->
 {#if showCancelModal && selectedPaymentForCancel}
 	<Dialog bind:open={showCancelModal}>
-		<DialogContent class="max-w-md w-full p-6 shadow-xl border border-border">
+		<DialogContent class="max-w-md w-full p-4 sm:p-6 max-h-[92vh] overflow-y-auto shadow-xl border border-border">
 			<DialogHeader>
 				<DialogTitle class="text-lg font-bold text-foreground">
 					Batalkan Pembayaran SPP?
@@ -784,7 +920,7 @@
 					Status tagihan akan kembali menjadi <em>Belum Lunas</em>.
 				</DialogDescription>
 			</DialogHeader>
-			<DialogFooter class="flex items-center justify-end gap-3 pt-2">
+			<DialogFooter class="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end pt-2">
 				<Button type="button" variant="outline" onclick={() => (showCancelModal = false)}>
 					Kembali
 				</Button>
@@ -809,7 +945,7 @@
 <!-- ============================================================== -->
 {#if showReceiptModal && selectedPaymentForReceipt}
 	<Dialog bind:open={showReceiptModal}>
-		<DialogContent class="max-w-xl w-full p-8 shadow-2xl border border-border my-8 overflow-y-auto max-h-[90vh]">
+		<DialogContent class="max-w-xl w-full p-4 sm:p-8 shadow-2xl border border-border my-8 overflow-y-auto max-h-[92vh]">
 			<!-- Bagian Kuitansi Siap Cetak -->
 			<div id="printable-receipt" class="space-y-6">
 				<!-- Kop Sekolah -->
@@ -922,7 +1058,7 @@
 			</div>
 
 			<!-- Tombol Kontrol Modal -->
-			<div class="flex items-center justify-end gap-3 mt-8 pt-4 border-t border-border">
+			<div class="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end mt-8 pt-4 border-t border-border">
 				<Button type="button" variant="outline" onclick={() => (showReceiptModal = false)}>
 					Tutup
 				</Button>
@@ -935,11 +1071,151 @@
 {/if}
 
 <!-- ============================================================== -->
+
+<!-- ============================================================== -->
+<!-- MODAL CATAT PEMBAYARAN SPP LANGSUNG                            -->
+<!-- ============================================================== -->
+{#if showRecordPayModal}
+	<Dialog bind:open={showRecordPayModal}>
+		<DialogContent class="max-w-lg w-full p-4 sm:p-6 max-h-[92vh] overflow-y-auto shadow-xl border border-border">
+			<DialogHeader class="flex items-center justify-between pb-3 border-b border-border mb-4">
+				<DialogTitle class="text-lg font-bold text-foreground">Catat Pembayaran SPP</DialogTitle>
+				<Button variant="ghost" size="sm" class="h-6 w-6 p-0" onclick={() => (showRecordPayModal = false)}>✕</Button>
+			</DialogHeader>
+			<form method="POST" action="?/recordPayment" onsubmit={() => (recordSubmitting = true)} use:enhance={() => {
+				return async ({ update }) => {
+					await update();
+					recordSubmitting = false;
+					showRecordPayModal = false;
+					recordStudentId = null;
+					recordStudentQuery = '';
+					recordMonth = '';
+					recordYearStr = '';
+					recordPaymentDate = new Date().toISOString().slice(0, 10);
+					recordPaymentMethod = 'cash';
+					recordNotes = '';
+				};
+			}}>
+				<div class="space-y-4">
+					<!-- Pilih Siswa -->
+					<div>
+						<label class="text-sm font-medium text-foreground">Siswa *</label>
+						<div class="relative mt-1">
+							<input
+								type="text"
+								bind:value={recordStudentQuery}
+								onfocus={() => (recordStudentOpen = true)}
+								onblur={() => setTimeout(() => (recordStudentOpen = false), 200)}
+								placeholder="Cari nama / NIS..."
+								class="w-full text-base sm:text-sm border border-input rounded-lg px-3 py-2 min-h-11 focus:ring-ring focus:border-ring"
+							/>
+							{#if recordStudentOpen && recordSiswaResults.length > 0}
+								<ul class="absolute z-50 left-0 right-0 top-full mt-1 bg-card border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+									{#each recordSiswaResults as s (s.id)}
+										<li
+											onclick={() => { recordStudentId = s.id; recordStudentQuery = `${s.name}${s.nis ? ' ('+s.nis+')' : ''}`; recordStudentOpen = false; }}
+											class="px-3 py-2 text-sm hover:bg-accent cursor-pointer flex items-center justify-between gap-2"
+										>
+											<span class="font-medium truncate">{s.name}</span>
+											<span class="text-xs text-muted-foreground shrink-0">{s.className ?? '-'}</span>
+										</li>
+									{/each}
+								</ul>
+							{/if}
+						</div>
+						{#if recordStudentId}
+							<p class="mt-1 text-xs text-muted-foreground">ID: {recordStudentId}</p>
+						{/if}
+					</div>
+
+					<!-- Tahun Ajaran -->
+					<div>
+						<label class="text-sm font-medium text-foreground">Tahun Ajaran *</label>
+						<select
+							name="academic_year_id"
+							bind:value={recordYearStr}
+							required
+							class="w-full text-base sm:text-sm border border-input rounded-lg px-3 py-2 min-h-11 focus:ring-ring focus:border-ring mt-1"
+						>
+							<option value="" disabled>Pilih tahun ajaran</option>
+							{#each data.allYears as y}
+								<option value={y.id}>{y.name} — {y.semester}{y.isActive ? ' ★' : ''}</option>
+							{/each}
+						</select>
+					</div>
+
+					<!-- Bulan -->
+					<div>
+						<label class="text-sm font-medium text-foreground">Bulan *</label>
+						<select
+							name="month"
+							bind:value={recordMonth}
+							required
+							class="w-full text-base sm:text-sm border border-input rounded-lg px-3 py-2 min-h-11 focus:ring-ring focus:border-ring mt-1"
+						>
+							<option value="" disabled>Pilih bulan</option>
+							{#each MONTHS as m}
+								<option value={m.value}>{m.label}</option>
+							{/each}
+						</select>
+					</div>
+
+					<!-- Tanggal Bayar -->
+					<div>
+						<label class="text-sm font-medium text-foreground">Tanggal Bayar *</label>
+						<input
+							type="date"
+							name="payment_date"
+							bind:value={recordPaymentDate}
+							required
+							class="w-full text-base sm:text-sm border border-input rounded-lg px-3 py-2 min-h-11 focus:ring-ring focus:border-ring mt-1"
+						/>
+					</div>
+
+					<!-- Metode Pembayaran -->
+					<div>
+						<label class="text-sm font-medium text-foreground">Metode Pembayaran *</label>
+						<select
+							name="payment_method"
+							bind:value={recordPaymentMethod}
+							class="w-full text-base sm:text-sm border border-input rounded-lg px-3 py-2 min-h-11 focus:ring-ring focus:border-ring mt-1"
+						>
+							<option value="cash">Tunai (Cash di Kasir)</option>
+							<option value="transfer">Transfer Bank</option>
+						</select>
+					</div>
+
+					<!-- Catatan -->
+					<div>
+						<label class="text-sm font-medium text-foreground">Catatan (Opsional)</label>
+						<textarea
+							name="notes"
+							bind:value={recordNotes}
+							rows="2"
+							placeholder="Keterangan tambahan (opsional)"
+							class="w-full text-base sm:text-sm border border-input rounded-lg px-3 py-2 min-h-11 focus:ring-ring focus:border-ring mt-1 resize-none"
+						></textarea>
+					</div>
+				</div>
+
+				<div class="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end mt-6 pt-4 border-t border-border">
+					<Button type="button" variant="outline" onclick={() => (showRecordPayModal = false)}>
+						Batal
+					</Button>
+					<Button type="submit" disabled={recordSubmitting}>
+						{recordSubmitting ? 'Menyimpan...' : 'Simpan Pembayaran'}
+					</Button>
+				</div>
+			</form>
+		</DialogContent>
+	</Dialog>
+{/if}
+
 <!-- MODAL CATAT PENGELUARAN / PENARIKAN DANA                       -->
 <!-- ============================================================== -->
 {#if showExpenseModal}
 	<Dialog bind:open={showExpenseModal}>
-		<DialogContent class="max-w-md w-full p-6 shadow-xl border border-border">
+		<DialogContent class="max-w-md w-full p-4 sm:p-6 max-h-[92vh] overflow-y-auto shadow-xl border border-border">
 			<DialogHeader class="flex items-center justify-between pb-3 border-b border-border mb-4">
 				<DialogTitle class="text-lg font-bold text-foreground">
 					Catat Penarikan Dana
@@ -957,19 +1233,19 @@
 					<div>
 						<label class="text-sm font-medium text-foreground">Tanggal *</label>
 						<input type="date" name="date" bind:value={expenseDate} required
-							class="w-full text-sm border border-input rounded-lg px-3 py-2 focus:ring-ring focus:border-ring mt-1" />
+							class="w-full text-base sm:text-sm border border-input rounded-lg px-3 py-2 min-h-11 focus:ring-ring focus:border-ring mt-1" />
 					</div>
 
 					<div>
 						<label class="text-sm font-medium text-foreground">Nominal (Rp) *</label>
 						<input type="number" name="amount" bind:value={expenseAmount} min="1" required placeholder="0"
-							class="w-full text-sm border border-input rounded-lg px-3 py-2 focus:ring-ring focus:border-ring mt-1" />
+							class="w-full text-base sm:text-sm border border-input rounded-lg px-3 py-2 min-h-11 focus:ring-ring focus:border-ring mt-1" />
 					</div>
 
 					<div>
 						<label class="text-sm font-medium text-foreground">Kategori</label>
 						<select name="category" bind:value={expenseCategory}
-							class="w-full text-sm border border-input rounded-lg px-3 py-2 focus:ring-ring focus:border-ring mt-1">
+							class="w-full text-base sm:text-sm border border-input rounded-lg px-3 py-2 min-h-11 focus:ring-ring focus:border-ring mt-1">
 							<option value="operasional">Operasional</option>
 							<option value="gaji">Gaji & THR Karyawan</option>
 							<option value="utilitas">Listrik / Air / Internet</option>
@@ -982,17 +1258,17 @@
 					<div>
 						<label class="text-sm font-medium text-foreground">Keterangan *</label>
 						<textarea name="description" bind:value={expenseDescription} required rows="2" placeholder="Contoh: Pembayaran listrik bulan Januari"
-							class="w-full text-sm border border-input rounded-lg px-3 py-2 focus:ring-ring focus:border-ring mt-1 resize-none"></textarea>
+							class="w-full text-base sm:text-sm border border-input rounded-lg px-3 py-2 min-h-11 focus:ring-ring focus:border-ring mt-1 resize-none"></textarea>
 					</div>
 
 					<div>
 						<label class="text-sm font-medium text-foreground">Catatan (Opsional)</label>
 						<input type="text" name="notes" bind:value={expenseNotes} placeholder="Tambahkan catatan..."
-							class="w-full text-sm border border-input rounded-lg px-3 py-2 focus:ring-ring focus:border-ring mt-1" />
+							class="w-full text-base sm:text-sm border border-input rounded-lg px-3 py-2 min-h-11 focus:ring-ring focus:border-ring mt-1" />
 					</div>
 				</div>
 
-				<div class="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-border">
+				<div class="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end mt-6 pt-4 border-t border-border">
 					<Button type="button" variant="outline" onclick={() => (showExpenseModal = false)}>Batal</Button>
 					<Button type="submit" variant="destructive">Simpan Pengeluaran</Button>
 				</div>

@@ -5,6 +5,8 @@
 	import { timeSlotSchema } from '$lib/validation/time-slot';
 	import type { PageData } from './$types';
 	import { Button } from '$lib/components/ui/button/index.js';
+import PencilIcon from '@lucide/svelte/icons/pencil';
+	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Card } from '$lib/components/ui/card/index.js';
@@ -17,6 +19,8 @@
 		TableRow
 	} from '$lib/components/ui/table/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
+	import { Pagination } from '$lib/components/ui/pagination/index.js';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
 	import {
 		Dialog,
 		DialogContent,
@@ -44,6 +48,41 @@
 	let editSlot: (typeof data.timeSlots)[0] | null = $state(null);
 	let deleteTarget: { id: number; name: string } | null = $state(null);
 
+	let page = $state(1);
+	let pageSize = $state(10);
+	let filterDay = $state('');
+	let filterSlot = $state('');
+	let filterType = $state('');
+
+	let hasActiveFilter = $derived(Boolean(filterDay || filterSlot || filterType));
+
+	function resetFilters() {
+		filterDay = '';
+		filterSlot = '';
+		filterType = '';
+		page = 1;
+	}
+
+	let filteredTimeSlots = $derived(
+		data.timeSlots.filter((ts) => {
+			if (filterDay && String(ts.day_of_week) !== filterDay) {
+				return false;
+			}
+			if (filterSlot && !String(ts.slot_number).includes(filterSlot.trim())) {
+				return false;
+			}
+			if (filterType) {
+				const isBreak = ts.is_break ? 'istirahat' : 'pelajaran';
+				if (isBreak !== filterType) return false;
+			}
+			return true;
+		})
+	);
+
+	let paginatedTimeSlots = $derived(
+		filteredTimeSlots.slice((page - 1) * pageSize, page * pageSize)
+	);
+
 	function inputCls(err?: unknown) {
 		const hasErr = Array.isArray(err)
 			? err.length > 0
@@ -61,14 +100,14 @@
 </svelte:head>
 
 <div class="max-w-5xl">
-	<div class="flex items-center justify-between mb-6">
+	<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
 		<div>
 			<h1 class="text-xl font-bold text-foreground">Jam Pelajaran</h1>
 			<p class="text-sm text-muted-foreground mt-0.5">
 				Tentukan slot waktu pelajaran per hari dalam seminggu
 			</p>
 		</div>
-		<Button onclick={() => (showAddModal = true)}>+ Tambah Slot Waktu</Button>
+		<Button onclick={() => (showAddModal = true)} class="min-h-11 w-full sm:w-auto">+ Tambah Slot Waktu</Button>
 	</div>
 
 	<Card>
@@ -79,48 +118,114 @@
 				<TableHeader>
 					<TableRow>
 						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Hari</TableHead>
-						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Slot ke-</TableHead>
+						<TableHead class="px-5 py-3 font-medium text-muted-foreground hidden sm:table-cell">Slot ke-</TableHead>
 						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Mulai</TableHead>
 						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Selesai</TableHead>
-						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Jenis</TableHead>
-						<TableHead class="text-right px-5 py-3 font-medium text-muted-foreground">Aksi</TableHead>
+						<TableHead class="px-5 py-3 font-medium text-muted-foreground hidden sm:table-cell">Jenis</TableHead>
+						<TableHead class="text-right px-5 py-3 font-medium text-muted-foreground">
+							{#if hasActiveFilter}
+								<Button variant="ghost" size="sm" class="h-7 text-xs text-muted-foreground" onclick={resetFilters}>
+									<RotateCcw class="size-3 mr-1" /> Reset
+								</Button>
+							{:else}
+								Aksi
+							{/if}
+						</TableHead>
+					</TableRow>
+					<TableRow class="bg-muted/30">
+						<TableHead class="px-2 py-1.5">
+							<select
+								bind:value={filterDay}
+								onchange={() => (page = 1)}
+								class="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+							>
+								<option value="">Semua Hari</option>
+								{#each Object.entries(data.dayLabels) as [dayNum, label]}
+									<option value={dayNum}>{label}</option>
+								{/each}
+							</select>
+						</TableHead>
+						<TableHead class="px-2 py-1.5 hidden sm:table-cell">
+							<Input
+								placeholder="Slot..."
+								bind:value={filterSlot}
+								oninput={() => (page = 1)}
+								class="h-8 text-xs bg-background"
+							/>
+						</TableHead>
+						<TableHead class="px-2 py-1.5"></TableHead>
+						<TableHead class="px-2 py-1.5"></TableHead>
+						<TableHead class="px-2 py-1.5 hidden sm:table-cell">
+							<select
+								bind:value={filterType}
+								onchange={() => (page = 1)}
+								class="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+							>
+								<option value="">Semua Jenis</option>
+								<option value="pelajaran">Pelajaran</option>
+								<option value="istirahat">Istirahat</option>
+							</select>
+						</TableHead>
+						<TableHead class="px-2 py-1.5"></TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody class="divide-y divide-border">
-					{#each data.timeSlots as ts (ts.id)}
-						<TableRow class="hover:bg-accent transition-colors">
-							<TableCell class="px-5 py-3.5 font-medium text-foreground">
-								{data.dayLabels[ts.day_of_week] ?? ts.day_of_week}
-							</TableCell>
-							<TableCell class="px-5 py-3.5 text-muted-foreground">{ts.slot_number}</TableCell>
-							<TableCell class="px-5 py-3.5 text-muted-foreground font-mono text-xs">
-								{ts.start_time}
-							</TableCell>
-							<TableCell class="px-5 py-3.5 text-muted-foreground font-mono text-xs">
-								{ts.end_time}
-							</TableCell>
-							<TableCell class="px-5 py-3.5">
-								{#if ts.is_break}
-									<Badge class="bg-warning/10 text-warning-foreground">Istirahat</Badge>
-								{:else}
-									<Badge class="bg-success/10 text-success-foreground">Pelajaran</Badge>
-								{/if}
-							</TableCell>
-							<TableCell class="px-5 py-3.5 text-right space-x-3">
-								<Button variant="ghost" size="sm" onclick={() => { editSlot = ts; showEditModal = true; }}>Edit</Button>
-								<Button variant="destructive" size="sm"
-									onclick={() => {
-										deleteTarget = {
-											id: ts.id,
-											name: `Hari ${data.dayLabels[ts.day_of_week] ?? ts.day_of_week} Slot ${ts.slot_number}`
-										};
-										showDeleteModal = true;
-									}}>Hapus</Button>
+					{#if paginatedTimeSlots.length === 0}
+						<TableRow>
+							<TableCell colspan={6} class="py-12 text-center text-muted-foreground text-sm">
+								Tidak ada data yang sesuai filter.
 							</TableCell>
 						</TableRow>
-					{/each}
+					{:else}
+						{#each paginatedTimeSlots as ts (ts.id)}
+							<TableRow class="hover:bg-accent transition-colors">
+								<TableCell class="px-5 py-3.5 font-medium text-foreground">
+									{data.dayLabels[ts.day_of_week] ?? ts.day_of_week}
+								</TableCell>
+								<TableCell class="px-5 py-3.5 text-muted-foreground hidden sm:table-cell">{ts.slot_number}</TableCell>
+								<TableCell class="px-5 py-3.5 text-muted-foreground font-mono text-xs">
+									{ts.start_time}
+								</TableCell>
+								<TableCell class="px-5 py-3.5 text-muted-foreground font-mono text-xs">
+									{ts.end_time}
+								</TableCell>
+								<TableCell class="px-5 py-3.5 hidden sm:table-cell">
+									{#if ts.is_break}
+										<Badge class="bg-warning/10 text-warning-foreground">Istirahat</Badge>
+									{:else}
+										<Badge class="bg-success/10 text-success-foreground">Pelajaran</Badge>
+									{/if}
+								</TableCell>
+								<TableCell class="px-5 py-3.5 text-right space-x-3">
+									<Button variant="ghost" size="sm" class="text-muted-foreground hover:text-foreground" onclick={() => { editSlot = ts; showEditModal = true; }}>
+										<PencilIcon data-icon="inline-start" />
+										Edit
+									</Button>
+									<Button variant="ghost" size="sm" class="text-destructive hover:text-destructive/90"
+										onclick={() => {
+											deleteTarget = {
+												id: ts.id,
+												name: `Hari ${data.dayLabels[ts.day_of_week] ?? ts.day_of_week} Slot ${ts.slot_number}`
+											};
+											showDeleteModal = true;
+										}}>
+										<Trash2Icon data-icon="inline-start" />
+										Hapus
+									</Button>
+								</TableCell>
+							</TableRow>
+						{/each}
+					{/if}
 				</TableBody>
 			</Table>
+
+			<div class="p-4 border-t border-border">
+				<Pagination
+					bind:page
+					bind:pageSize
+					totalItems={filteredTimeSlots.length}
+				/>
+			</div>
 		{/if}
 	</Card>
 </div>

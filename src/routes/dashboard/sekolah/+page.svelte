@@ -18,6 +18,8 @@
 	} from '$lib/components/ui/table/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert/index.js';
+	import { Pagination } from '$lib/components/ui/pagination/index.js';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
 	import {
 		Dialog,
 		DialogContent,
@@ -46,6 +48,41 @@
 	let editSchool: (typeof data.schools)[0] | null = $state(null);
 	let deleteTarget: { id: number; name: string } | null = $state(null);
 
+	let page = $state(1);
+	let pageSize = $state(10);
+	let filterName = $state('');
+	let filterNpsn = $state('');
+	let filterStatus = $state('');
+
+	let hasActiveFilter = $derived(Boolean(filterName || filterNpsn || filterStatus));
+
+	function resetFilters() {
+		filterName = '';
+		filterNpsn = '';
+		filterStatus = '';
+		page = 1;
+	}
+
+	let filteredSchools = $derived(
+		data.schools.filter((s) => {
+			if (filterName && !(s.name ?? '').toLowerCase().includes(filterName.toLowerCase())) {
+				return false;
+			}
+			if (filterNpsn && !(s.npsn ?? '').includes(filterNpsn.trim())) {
+				return false;
+			}
+			if (filterStatus !== '') {
+				const active = s.is_active ? 'active' : 'inactive';
+				if (active !== filterStatus) return false;
+			}
+			return true;
+		})
+	);
+
+	let paginatedSchools = $derived(
+		filteredSchools.slice((page - 1) * pageSize, page * pageSize)
+	);
+
 	function inputCls(err?: unknown) {
 		const hasErr = Array.isArray(err) ? err.length > 0 : (err != null && typeof err === 'object' && '_errors' in err ? !!(err as any)._errors?.length : !!err);
 		return `w-full px-3.5 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-opacity-20 transition-colors ${
@@ -59,12 +96,12 @@
 </svelte:head>
 
 <div class="max-w-5xl">
-	<div class="flex items-center justify-between mb-6">
+	<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
 		<div>
 			<h1 class="text-xl font-bold text-foreground">Sekolah</h1>
 			<p class="text-sm text-muted-foreground mt-0.5">Kelola data sekolah yang terdaftar</p>
 		</div>
-		<Button onclick={() => (showAddModal = true)}>+ Tambah Sekolah</Button>
+		<Button onclick={() => (showAddModal = true)} class="min-h-11 w-full sm:w-auto">+ Tambah Sekolah</Button>
 	</div>
 
 	<Card>
@@ -75,33 +112,89 @@
 				<TableHeader>
 					<TableRow>
 						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Nama Sekolah</TableHead>
-						<TableHead class="px-5 py-3 font-medium text-muted-foreground">NPSN</TableHead>
-						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Telepon</TableHead>
-						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Email</TableHead>
+						<TableHead class="px-5 py-3 font-medium text-muted-foreground hidden md:table-cell">NPSN</TableHead>
+						<TableHead class="px-5 py-3 font-medium text-muted-foreground hidden md:table-cell">Telepon</TableHead>
+						<TableHead class="px-5 py-3 font-medium text-muted-foreground hidden md:table-cell">Email</TableHead>
 						<TableHead class="px-5 py-3 font-medium text-muted-foreground">Status</TableHead>
-						<TableHead class="text-right px-5 py-3 font-medium text-muted-foreground">Aksi</TableHead>
+						<TableHead class="text-right px-5 py-3 font-medium text-muted-foreground">
+							{#if hasActiveFilter}
+								<Button variant="ghost" size="sm" class="h-7 text-xs text-muted-foreground" onclick={resetFilters}>
+									<RotateCcw class="size-3 mr-1" /> Reset
+								</Button>
+							{:else}
+								Aksi
+							{/if}
+						</TableHead>
+					</TableRow>
+					<TableRow class="bg-muted/30">
+						<TableHead class="px-2 py-1.5">
+							<Input
+								placeholder="Cari sekolah..."
+								bind:value={filterName}
+								oninput={() => (page = 1)}
+								class="h-8 text-xs bg-background"
+							/>
+						</TableHead>
+						<TableHead class="px-2 py-1.5 hidden md:table-cell">
+							<Input
+								placeholder="Cari NPSN..."
+								bind:value={filterNpsn}
+								oninput={() => (page = 1)}
+								class="h-8 text-xs bg-background"
+							/>
+						</TableHead>
+						<TableHead class="px-2 py-1.5 hidden md:table-cell"></TableHead>
+						<TableHead class="px-2 py-1.5 hidden md:table-cell"></TableHead>
+						<TableHead class="px-2 py-1.5">
+							<select
+								bind:value={filterStatus}
+								onchange={() => (page = 1)}
+								class="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+							>
+								<option value="">Semua</option>
+								<option value="active">Aktif</option>
+								<option value="inactive">Nonaktif</option>
+							</select>
+						</TableHead>
+						<TableHead class="px-2 py-1.5"></TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody class="divide-y divide-border">
-					{#each data.schools as s (s.id)}
-						<TableRow class="hover:bg-accent transition-colors">
-							<TableCell class="px-5 py-3.5 font-medium text-foreground">{s.name}</TableCell>
-							<TableCell class="px-5 py-3.5 text-muted-foreground">{s.npsn}</TableCell>
-							<TableCell class="px-5 py-3.5 text-muted-foreground">{s.phone ?? '—'}</TableCell>
-							<TableCell class="px-5 py-3.5 text-muted-foreground">{s.email ?? '—'}</TableCell>
-							<TableCell class="px-5 py-3.5">
-								<Badge class={s.is_active ? 'bg-success/10 text-success-foreground' : 'bg-muted text-muted-foreground'}>
-									{s.is_active ? 'Aktif' : 'Nonaktif'}
-								</Badge>
-							</TableCell>
-							<TableCell class="px-5 py-3.5 text-right space-x-3">
-								<Button variant="ghost" size="sm" onclick={() => { editSchool = s; showEditModal = true; }}>Edit</Button>
-								<Button variant="destructive" size="sm" onclick={() => { deleteTarget = { id: s.id, name: s.name }; showDeleteModal = true; }}>Hapus</Button>
+					{#if paginatedSchools.length === 0}
+						<TableRow>
+							<TableCell colspan={6} class="py-12 text-center text-muted-foreground text-sm">
+								Tidak ada data yang sesuai filter.
 							</TableCell>
 						</TableRow>
-					{/each}
+					{:else}
+						{#each paginatedSchools as s (s.id)}
+							<TableRow class="hover:bg-accent transition-colors">
+								<TableCell class="px-5 py-3.5 font-medium text-foreground">{s.name}</TableCell>
+								<TableCell class="px-5 py-3.5 text-muted-foreground hidden md:table-cell">{s.npsn}</TableCell>
+								<TableCell class="px-5 py-3.5 text-muted-foreground hidden md:table-cell">{s.phone ?? '—'}</TableCell>
+								<TableCell class="px-5 py-3.5 text-muted-foreground hidden md:table-cell">{s.email ?? '—'}</TableCell>
+								<TableCell class="px-5 py-3.5">
+									<Badge class={s.is_active ? 'bg-success/10 text-success-foreground' : 'bg-muted text-muted-foreground'}>
+										{s.is_active ? 'Aktif' : 'Nonaktif'}
+									</Badge>
+								</TableCell>
+								<TableCell class="px-5 py-3.5 text-right space-x-3">
+									<Button variant="ghost" size="sm" onclick={() => { editSchool = s; showEditModal = true; }}>Edit</Button>
+									<Button variant="destructive" size="sm" onclick={() => { deleteTarget = { id: s.id, name: s.name }; showDeleteModal = true; }}>Hapus</Button>
+								</TableCell>
+							</TableRow>
+						{/each}
+					{/if}
 				</TableBody>
 			</Table>
+
+			<div class="p-4 border-t border-border">
+				<Pagination
+					bind:page
+					bind:pageSize
+					totalItems={filteredSchools.length}
+				/>
+			</div>
 		{/if}
 	</Card>
 </div>

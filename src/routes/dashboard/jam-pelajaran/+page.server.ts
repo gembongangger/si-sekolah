@@ -27,7 +27,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		.select()
 		.from(timeSlots)
 		.where(and(eq(timeSlots.school_id, schoolId), isNull(timeSlots.deleted_at)))
-		.orderBy(desc(timeSlots.created_at));
+		.orderBy(timeSlots.day_of_week, timeSlots.slot_number, timeSlots.start_time);
 
 	const form = await superValidate(zod(timeSlotSchema));
 
