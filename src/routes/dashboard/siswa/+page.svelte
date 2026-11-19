@@ -416,6 +416,7 @@
 						<TableHead class="px-5 py-3">NIS</TableHead>
 						<TableHead class="px-5 py-3">NISN</TableHead>
 						<TableHead class="px-5 py-3">Kelas</TableHead>
+						<TableHead class="px-5 py-3">Jalur</TableHead>
 						<TableHead class="px-5 py-3">L/P</TableHead>
 						<TableHead class="px-5 py-3">Status</TableHead>
 						{#if canManage}<TableHead class="px-5 py-3 text-right">Aksi</TableHead>{/if}
@@ -512,6 +513,7 @@
 								{siswa.nisn ?? '—'}
 							</TableCell>
 							<TableCell class="px-5 py-3.5 font-medium">{siswa.class_name ?? '—'}</TableCell>
+							<TableCell class="px-5 py-3.5">{siswa.track ?? 'reguler'}</TableCell>
 							<TableCell class="px-5 py-3.5">{siswa.gender ?? '—'}</TableCell>
 							<TableCell class="px-5 py-3.5">
 								{#if siswa.is_active}
@@ -801,6 +803,20 @@
 					</Select>
 				</div>
 				<div class="space-y-1.5">
+					<Label for="create-track-select">Jalur Pendaftaran</Label>
+					<select
+						id="create-track-select"
+						name="track"
+						bind:value={$form.track}
+						class="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+					>
+						<option value="reguler">Reguler</option>
+						{#each data.tracks as t (t.code)}
+							{#if t.code !== 'reguler'}<option value={t.code}>{t.name}</option>{/if}
+						{/each}
+					</select>
+				</div>
+				<div class="space-y-1.5">
 					<Label for="create-gender-select">Jenis Kelamin</Label>
 					<Select type="single" name="gender" bind:value={$form.gender}>
 						<SelectTrigger id="create-gender-select" class="w-full">
@@ -907,6 +923,20 @@
 								</SelectGroup>
 							</SelectContent>
 						</Select>
+					</div>
+					<div class="space-y-1.5">
+						<Label for="edit-track-select">Jalur Pendaftaran</Label>
+						<select
+							id="edit-track-select"
+							name="track"
+							value={s.track ?? 'reguler'}
+							class="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+						>
+							<option value="reguler">Reguler</option>
+							{#each data.tracks as t (t.code)}
+								{#if t.code !== 'reguler'}<option value={t.code}>{t.name}</option>{/if}
+							{/each}
+						</select>
 					</div>
 					<div class="space-y-1.5">
 						<Label for="edit-gender-select">Jenis Kelamin</Label>

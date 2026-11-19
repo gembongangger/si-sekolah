@@ -4,7 +4,7 @@ import { zod } from 'sveltekit-superforms/adapters/zod4';
 import type { PageServerLoad, Actions } from './$types';
 import { requireRole, requireAdminSekolah } from '$lib/server/auth/guard';
 import { siswaCreateSchema, siswaUpdateSchema } from '$lib/validation/siswa';
-import { users, students, classes, schools } from '$lib/server/db/schema';
+import { users, students, classes, schools, ppdbTracks } from '$lib/server/db/schema';
 import { eq, and, isNull, desc } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import * as XLSX from 'xlsx';
@@ -30,6 +30,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			nis: students.nis,
 			nisn: students.nisn,
 			gender: students.gender,
+			track: students.track,
 			class_id: students.class_id,
 			birth_date: students.birth_date,
 			address: students.address,
@@ -56,8 +57,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 		.where(and(eq(classes.school_id, schoolId), isNull(classes.deleted_at)))
 		.orderBy(classes.name);
 
+	// Daftar jalur pendaftaran aktif di sekolah ini (untuk pilihan saat daftar ulang/manual)
+	const trackList = await db
+		.select({ id: ppdbTracks.id, code: ppdbTracks.code, name: ppdbTracks.name })
+		.from(ppdbTracks)
+		.where(and(eq(ppdbTracks.school_id, schoolId), eq(ppdbTracks.is_active, 1), isNull(ppdbTracks.deleted_at)))
+		.orderBy(ppdbTracks.code);
+
 	const form = await superValidate(zod(siswaCreateSchema));
-	return { siswas: siswaList, kelas: kelasList, form, canManage };
+	return { siswas: siswaList, kelas: kelasList, tracks: trackList, form, canManage };
 };
 
 export const actions: Actions = {
@@ -73,7 +81,7 @@ export const actions: Actions = {
 
 		const {
 			name, email, password, nis, nisn, gender,
-			class_id, birth_date, address, parent_name, parent_phone, is_active
+			class_id, birth_date, address, parent_name, parent_phone, track, is_active
 		} = form.data;
 
 		// Cek email duplikat
@@ -124,6 +132,7 @@ export const actions: Actions = {
 			address: address || null,
 			parent_name: parent_name || null,
 			parent_phone: parent_phone || null,
+			track: track ?? 'reguler',
 			created_at: now
 		});
 
@@ -169,7 +178,8 @@ export const actions: Actions = {
 			birth_date: birth_date || null,
 			address: address || null,
 			parent_name: parent_name || null,
-			parent_phone: parent_phone || null
+			parent_phone: parent_phone || null,
+			...(track !== undefined ? { track } : {})
 		}).where(eq(students.user_id, id));
 
 		return message(form, 'Data siswa berhasil diperbarui');

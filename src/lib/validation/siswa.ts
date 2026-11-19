@@ -12,6 +12,7 @@ export const siswaCreateSchema = z.object({
 	address: z.string().optional(),
 	parent_name: z.string().optional(),
 	parent_phone: z.string().optional(),
+	track: z.string().default('reguler'),
 	is_active: z.coerce.number().int().min(0).max(1).default(1)
 });
 
@@ -27,6 +28,7 @@ export const siswaUpdateSchema = z.object({
 	address: z.string().optional(),
 	parent_name: z.string().optional(),
 	parent_phone: z.string().optional(),
+	track: z.string().optional(),
 	is_active: z.coerce.number().int().min(0).max(1).default(1)
 });
 

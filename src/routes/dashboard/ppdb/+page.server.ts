@@ -883,6 +883,7 @@ export const actions: Actions = {
 					nis,
 					nisn: reg.nisn,
 					gender: reg.gender === 'L' || reg.gender === 'P' ? reg.gender : null,
+					track: reg.track,
 					class_id: targetClass.id,
 					birth_date: reg.birth_date,
 					address: reg.address,

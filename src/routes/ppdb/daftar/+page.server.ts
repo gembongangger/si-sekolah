@@ -326,8 +326,8 @@ export const actions: Actions = {
 			for (const doc of docFields) {
 				const file = formData.get(`doc_${doc.key}`) as File | null;
 				if (file && file.size > 0) {
-					// Validate format (jpg/jpeg -> image/jpeg)
-					const allowed = (doc.formats?.length ? doc.formats : ['jpg', 'png', 'pdf']).map((f) => f.toLowerCase());
+					// Validate format: always allow PDF (client auto-converts images to PDF)
+					const allowed = [...new Set([...(doc.formats?.length ? doc.formats : ['jpg', 'png', 'pdf']).map((f) => f.toLowerCase()), 'pdf'])];
 					const mimeOk = allowed.some((f) => {
 						if (f === 'pdf') return file.type === 'application/pdf';
 						if (f === 'jpg' || f === 'jpeg') return file.type === 'image/jpeg';

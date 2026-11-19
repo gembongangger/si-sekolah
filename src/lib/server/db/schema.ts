@@ -242,6 +242,7 @@ export const students = sqliteTable(
 		address: text('address'),
 		parent_name: text('parent_name'),
 		parent_phone: text('parent_phone'),
+		track: text('track').default('reguler'),
 		created_at: integer('created_at').notNull().default(sql`(unixepoch('subsec') * 1000)`)
 	},
 	(t): SQLiteTableExtraConfigValue[] => [

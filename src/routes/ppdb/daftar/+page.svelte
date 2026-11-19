@@ -2,6 +2,7 @@
 	import { untrack } from 'svelte';
 	import type { PageData, ActionData } from './$types';
 	import { DEFAULT_PPDB_TRACKS } from '$lib/validation/ppdb';
+	import { imageFileToCompressedPdf } from '$lib/pdf';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -171,13 +172,105 @@
 		if (fileInputEl) fileInputEl.value = '';
 	}
 
-	// ── Dokumen Upload ────────────────────────────────────────
+	// ── Dokumen Upload (gambar otomatis → PDF terkompresi) ────
 	let uploadedDocs = $state<Record<string, File | null>>({});
+	let docInputs = $state<Record<string, HTMLInputElement | null>>({});
+	let docConverting = $state<Record<string, boolean>>({});
 
-	function onDocFileChange(key: string, e: Event) {
+	async function setDocFile(key: string, file: File) {
+		const input = docInputs[key];
+		if (input) {
+			const dt = new DataTransfer();
+			dt.items.add(file);
+			input.files = dt.files;
+		}
+		uploadedDocs = { ...uploadedDocs, [key]: file };
+	}
+
+	async function onDocFileChange(key: string, e: Event) {
 		const input = e.target as HTMLInputElement;
 		const f = input.files?.[0] ?? null;
-		uploadedDocs = { ...uploadedDocs, [key]: f };
+		if (!f) {
+			uploadedDocs = { ...uploadedDocs, [key]: null };
+			return;
+		}
+		if (f.type.startsWith('image/')) {
+			docConverting = { ...docConverting, [key]: true };
+			try {
+				const pdf = await imageFileToCompressedPdf(f, { label: key });
+				await setDocFile(key, pdf);
+			} catch (err) {
+				console.error('Gagal konversi dokumen ke PDF:', err);
+				uploadedDocs = { ...uploadedDocs, [key]: f };
+			} finally {
+				docConverting = { ...docConverting, [key]: false };
+			}
+		} else {
+			uploadedDocs = { ...uploadedDocs, [key]: f };
+		}
+	}
+
+	// ── Kamera dokumen ────────────────────────────────────────
+	let docCameraKey: string | null = $state(null);
+	let docVideoEl: HTMLVideoElement | null = $state(null);
+	let docCanvasRef: HTMLCanvasElement | null = $state(null);
+	let docStream: MediaStream | null = $state(null);
+	let docCamError = $state('');
+	let docLoadingCam = $state(false);
+
+	async function openDocCamera(key: string) {
+		docCameraKey = key;
+		docCamError = '';
+		docLoadingCam = true;
+		await sleep(100);
+		try {
+			const stream = await navigator.mediaDevices.getUserMedia({
+				video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+			});
+			docStream = stream;
+			if (docVideoEl) docVideoEl.srcObject = stream;
+		} catch {
+			docCamError = 'Akses kamera ditolak. Izinkan akses kamera di pengaturan browser.';
+		} finally {
+			docLoadingCam = false;
+		}
+	}
+
+	function stopDocCamera() {
+		if (docStream) {
+			docStream.getTracks().forEach((t) => t.stop());
+			docStream = null;
+		}
+	}
+
+	function closeDocCamera() {
+		stopDocCamera();
+		docCameraKey = null;
+	}
+
+	async function captureDocPhoto() {
+		if (!docVideoEl || !docCanvasRef || !docCameraKey) return;
+		docCanvasRef.width = docVideoEl.videoWidth;
+		docCanvasRef.height = docVideoEl.videoHeight;
+		docCanvasRef.getContext('2d')!.drawImage(docVideoEl, 0, 0);
+		const blob = await new Promise<Blob | null>((resolve) => {
+			docCanvasRef!.toBlob(resolve, 'image/jpeg', 0.85);
+		});
+		if (!blob) return;
+		const key = docCameraKey;
+		const jpeg = new File([blob], `doc-${key}-${Date.now()}.jpg`, { type: 'image/jpeg' });
+		closeDocCamera();
+		docConverting = { ...docConverting, [key]: true };
+		try {
+			const pdf = await imageFileToCompressedPdf(jpeg, { label: key });
+			await setDocFile(key, pdf);
+		} catch (err) {
+			console.error('Gagal konversi hasil kamera ke PDF:', err);
+			docCamError = 'Gagal mengonversi foto ke PDF. Coba lagi.';
+			docCameraKey = key;
+		} finally {
+			docConverting = { ...docConverting, [key]: false };
+		}
 	}
 
 	function sleep(ms: number): Promise<void> {
@@ -657,13 +750,70 @@
 						{/if}
 					</div>
 
+					<!-- Kamera Dokumen Modal -->
+					{#if docCameraKey}
+						<div
+							class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+							role="dialog"
+							aria-modal="true"
+						>
+							<div class="bg-card rounded-2xl overflow-hidden w-full max-w-sm shadow-2xl">
+								<div class="relative w-full">
+									<video
+										bind:this={docVideoEl}
+										autoplay
+									muted
+									playsinline
+									class="w-full aspect-[4/3] bg-slate-900 rounded-t-2xl"
+								></video>
+								<canvas class="hidden" bind:this={docCanvasRef}></canvas>
+								{#if docLoadingCam}
+									<div
+										class="absolute inset-0 flex items-center justify-center bg-slate-900/60 rounded-t-2xl"
+									>
+										<div class="text-white text-sm flex flex-col items-center gap-2">
+											<div class="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+										Mengaktifkan kamera…
+									</div>
+									</div>
+								{/if}
+							</div>
+							<div class="p-4 space-y-3">
+								{#if docCamError}
+									<p class="text-sm text-destructive">{docCamError}</p>
+								{/if}
+								<div class="flex items-center gap-3">
+									<button
+										type="button"
+										onclick={captureDocPhoto}
+										disabled={!docStream}
+										class="flex-1 py-3 bg-success hover:bg-success/90 disabled:bg-slate-300 text-success-foreground text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+									>
+										<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+											<path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.127 2.127 0 0 1 9 5h6a2.127 2.127 0 0 1 2.172 1.175M18 12.33V18a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-5.67M12 9.5a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z" />
+										</svg>
+										Ambil Foto
+									</button>
+									<button
+										type="button"
+										onclick={closeDocCamera}
+										class="px-4 py-3 bg-muted hover:bg-slate-200 text-muted-foreground text-sm font-medium rounded-xl transition-colors"
+									>
+										Batal
+									</button>
+								</div>
+							</div>
+						</div>
+					</div>
+					{/if}
+
 					<!-- Dokumen Persyaratan (dinamis sesuai konfigurasi gelombang) -->
 					{#if currentBatch?.documentRequirements?.fields?.length}
 						<div class="border-t border-border pt-4 space-y-3">
 							<h3 class="text-sm font-bold text-foreground flex items-center gap-2">
 								<span>📎</span> Dokumen Persyaratan
 							</h3>
-							<p class="text-sm text-muted-foreground">Upload dokumen sesuai format. Maks 10 MB per file.</p>
+							<p class="text-sm text-muted-foreground">Foto/gambar otomatis dikonversi ke PDF terkompresi. Maks 10 MB per file.</p>
 							{#each currentBatch.documentRequirements.fields as doc (doc.key)}
 								<div class="space-y-1.5">
 									<label for={`doc_${doc.key}`} class="block text-sm font-semibold text-foreground">
@@ -674,13 +824,23 @@
 										id={`doc_${doc.key}`}
 										type="file"
 										name={`doc_${doc.key}`}
-										accept={(doc.formats || ['jpg', 'png', 'pdf']).map((f) => (f === 'pdf' ? '.pdf,application/pdf' : `.${f},image/${f}`)).join(',')}
+										accept="image/jpeg,image/png,image/webp,application/pdf,.pdf"
 										required={doc.required}
 										onchange={(e) => onDocFileChange(doc.key, e)}
+										bind:this={docInputs[doc.key]}
 										class="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-primary/10 file:text-primary-foreground file:font-semibold file:text-sm hover:file:bg-primary/20"
 									/>
-									{#if uploadedDocs[doc.key]}
-										<p class="text-sm text-success-foreground">✓ {uploadedDocs[doc.key]?.name}</p>
+									<button
+										type="button"
+										onclick={() => openDocCamera(doc.key)}
+										class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card text-sm font-medium text-foreground hover:bg-muted transition-colors"
+									>
+										📷 Ambil Foto Kamera
+									</button>
+									{#if docConverting[doc.key]}
+										<p class="text-sm text-muted-foreground">⏳ Mengonversi ke PDF terkompresi...</p>
+									{:else if uploadedDocs[doc.key]}
+										<p class="text-sm text-success-foreground">✓ {uploadedDocs[doc.key]?.name} · {Math.round((uploadedDocs[doc.key]?.size ?? 0) / 1024)} KB</p>
 									{/if}
 								</div>
 							{/each}
