@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { enhance } from '@sveltejs/kit';
 	let { data, form }: any = $props();
 </script>
 
