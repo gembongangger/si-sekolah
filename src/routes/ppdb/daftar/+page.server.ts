@@ -133,6 +133,9 @@ export const actions: Actions = {
 	default: async ({ request, locals, platform }) => {
 		const db = locals.db;
 		const bucket = platform?.env?.STORAGE_BUCKET;
+		if (!bucket) {
+			return fail(500, { error: 'Penyimpanan R2 tidak dikonfigurasi (STORAGE_BUCKET).' });
+		}
 		const formData = await request.formData();
 
 		const rawData = {

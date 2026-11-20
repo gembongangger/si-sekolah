@@ -91,6 +91,24 @@
 		</div>
 	</section>
 
+	<!-- Kontak -->
+	<section class="border-t border-border/60">
+		<div class="mx-auto max-w-6xl px-4 py-12 sm:px-6 text-center">
+			<h2 class="text-xl font-bold sm:text-2xl">Hubungi Kami</h2>
+			<p class="mt-2 text-sm text-muted-foreground">Butuh bantuan atau informasi lebih lanjut? Tim SISKO siap membantu.</p>
+			<div class="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+				<a href="https://wa.me/85606143303" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700">
+					<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.86 9.86 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91C21.96 6.45 17.5 2 12.04 2Zm0 18.09h-.01a8.2 8.2 0 0 1-4.18-1.14l-.3-.18-3.12.82.83-3.04-.2-.31a8.16 8.16 0 0 1-1.25-4.35c0-4.52 3.68-8.2 8.2-8.2 2.19 0 4.25.85 5.8 2.4a8.15 8.15 0 0 1 2.4 5.8c0 4.52-3.68 8.2-8.17 8.2Zm4.5-6.14c-.25-.13-1.46-.72-1.69-.8-.23-.08-.39-.13-.56.13-.17.25-.64.8-.79.96-.14.17-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.65-1.23-1.46-1.38-1.71-.14-.25-.01-.38.11-.51.11-.11.25-.29.37-.43.13-.14.17-.25.25-.42.08-.17.04-.31-.02-.44-.06-.12-.56-1.35-.76-1.85-.2-.48-.4-.42-.56-.43-.14-.01-.31-.01-.48-.01-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1s.9 2.44 1.03 2.61c.13.17 1.78 2.71 4.31 3.8.6.26 1.07.42 1.44.54.6.19 1.15.16 1.58.1.48-.07 1.46-.6 1.67-1.17.2-.58.2-1.07.14-1.17-.06-.1-.23-.16-.48-.28Z"/></svg>
+					Hubungi via WhatsApp
+				</a>
+				<a href="mailto:gembongangger.edu@gmail.com" class="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-5 py-2.5 text-sm font-semibold hover:bg-muted">
+					<svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/></svg>
+					gembongangger.edu@gmail.com
+				</a>
+			</div>
+		</div>
+	</section>
+
 	<!-- CTA -->
 	<section class="border-t border-border/60 bg-muted/30">
 		<div class="mx-auto max-w-6xl px-4 py-14 sm:px-6 text-center">
