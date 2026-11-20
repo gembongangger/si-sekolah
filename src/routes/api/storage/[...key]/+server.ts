@@ -1,12 +1,13 @@
 import { error } from '@sveltejs/kit';
+import { env as cloudflareEnv } from 'cloudflare:workers';
 import type { RequestHandler } from './$types';
 import { getFile } from '$lib/server/services/storage';
 
-export const GET: RequestHandler = async ({ platform, params, url }) => {
+export const GET: RequestHandler = async ({ params, url }) => {
 	const key = params.key;
 	if (!key) throw error(400, 'Key tidak diberikan');
 
-	const bucket = platform?.env?.STORAGE_BUCKET;
+	const bucket = cloudflareEnv?.STORAGE_BUCKET as R2Bucket | undefined;
 	if (!bucket) throw error(500, 'Storage bucket tidak tersedia');
 
 	const object = await getFile(bucket, key);

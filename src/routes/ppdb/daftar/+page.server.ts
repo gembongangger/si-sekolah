@@ -130,9 +130,9 @@ function todayInTimeZone(timeZone: string): string {
 }
 
 export const actions: Actions = {
-	default: async ({ request, locals, platform }) => {
+	default: async ({ request, locals }) => {
 		const db = locals.db;
-		const bucket = platform?.env?.STORAGE_BUCKET;
+		const bucket = cloudflareEnv?.STORAGE_BUCKET as R2Bucket | undefined;
 		if (!bucket) {
 			return fail(500, { error: 'Penyimpanan R2 tidak dikonfigurasi (STORAGE_BUCKET).' });
 		}
