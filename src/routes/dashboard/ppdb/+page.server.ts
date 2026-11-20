@@ -1152,5 +1152,80 @@ export const actions: Actions = {
 			operation: 'deleteTrack',
 			message: `Jalur "${track.name}" berhasil dihapus.`
 		};
+	},
+
+	importNilai: async ({ request, locals }) => {
+		const user = requireAdminSekolah(locals.user);
+		const db = locals.db;
+		const schoolId = user.schoolId;
+		const formData = await request.formData();
+		const file = formData.get('file');
+
+		if (!(file instanceof File) || file.size === 0) {
+			return fail(400, { success: false, operation: 'importNilai', message: 'Pilih file Excel (.xlsx/.xls) terlebih dahulu.' });
+		}
+		if (file.size > 2 * 1024 * 1024) {
+			return fail(400, { success: false, operation: 'importNilai', message: 'Ukuran file maksimal 2 MB.' });
+		}
+		const buf = await file.arrayBuffer();
+		const XLSX = (await import('xlsx')).default;
+		const wb = XLSX.read(buf, { type: 'array' });
+		const ws = wb.Sheets[wb.SheetNames[0]];
+		const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
+		const header = (rows.shift() ?? []).map((h: any) => String(h).toLowerCase().trim());
+		const noIdx = header.indexOf('nomor_pendaftaran');
+		const scoreIdx = header.indexOf('nilai');
+		if (noIdx < 0 || scoreIdx < 0) {
+			return fail(400, {
+				success: false,
+				operation: 'importNilai',
+				message: 'Header CSV harus berisi nomor_pendaftaran dan nilai.'
+			});
+		}
+
+		let imported = 0;
+		let failed = 0;
+		const errors: string[] = [];
+		for (const [i, cells] of rows.entries()) {
+			if (!cells.some(Boolean)) continue;
+			const no = (cells[noIdx] ?? '').trim();
+			const raw = (cells[scoreIdx] ?? '').trim();
+			const score = Number(raw);
+			if (!no || !raw || !Number.isFinite(score) || !Number.isInteger(score) || score < 0 || score > 100) {
+				failed++;
+				if (errors.length < 10) errors.push(`Baris ${i + 2}: nomor atau nilai tidak valid.`);
+				continue;
+			}
+			const [reg] = await db
+				.select({ id: ppdbRegistrations.id })
+				.from(ppdbRegistrations)
+				.where(
+					and(
+						eq(ppdbRegistrations.school_id, schoolId),
+						eq(ppdbRegistrations.registration_number, no),
+						isNull(ppdbRegistrations.deleted_at)
+					)
+				)
+				.limit(1);
+			if (!reg) {
+				failed++;
+				if (errors.length < 10) errors.push(`Baris ${i + 2}: nomor pendaftaran "${no}" tidak ditemukan.`);
+				continue;
+			}
+			await db
+				.update(ppdbRegistrations)
+				.set({ selection_score: score, updated_at: Date.now() })
+				.where(eq(ppdbRegistrations.id, reg.id));
+			imported++;
+		}
+
+		return {
+			success: true,
+			operation: 'importNilai',
+			message: `Import nilai selesai.`,
+			imported,
+			failed,
+			errors
+		};
 	}
 };

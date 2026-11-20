@@ -11,6 +11,9 @@
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
+	type PpdbTab = 'pendaftar' | 'gelombang' | 'jalur' | 'link' | 'nilai';
+	let activeTab = $state<PpdbTab>('pendaftar');
+
 	// ── Modal states ─────────────────────────────────────────────
 	let showBatchModal = $state(false);
 	let showTrackModal = $state(false);
@@ -373,7 +376,32 @@
 		</div>
 	{/if}
 
+	<!-- Nav Tabs PPDB -->
+	<div class="grid grid-cols-2 gap-1 mb-5 bg-muted p-1 rounded-lg sm:flex sm:w-fit">
+		<button
+			onclick={() => (activeTab = 'pendaftar')}
+			class="min-h-10 px-2 sm:px-4 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors flex items-center justify-center {activeTab === 'pendaftar' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}"
+		>Pendaftar</button>
+		<button
+			onclick={() => (activeTab = 'gelombang')}
+			class="min-h-10 px-2 sm:px-4 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors flex items-center justify-center {activeTab === 'gelombang' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}"
+		>Gelombang</button>
+		<button
+			onclick={() => (activeTab = 'jalur')}
+			class="min-h-10 px-2 sm:px-4 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors flex items-center justify-center {activeTab === 'jalur' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}"
+		>Jalur Pendaftaran</button>
+		<button
+			onclick={() => (activeTab = 'link')}
+			class="min-h-10 px-2 sm:px-4 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors flex items-center justify-center {activeTab === 'link' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}"
+		>Link Publik</button>
+		<button
+			onclick={() => (activeTab = 'nilai')}
+			class="min-h-10 px-2 sm:px-4 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-colors flex items-center justify-center {activeTab === 'nilai' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}"
+		>Import Nilai</button>
+	</div>
+
 	<!-- Statistik -->
+	{#if activeTab === 'pendaftar'}
 	<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
 		<div class="bg-card rounded-xl border border-border p-4">
 			<p class="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Total Pendaftar</p>
@@ -396,8 +424,10 @@
 			<p class="text-2xl font-bold text-primary mt-1">{data.stats.enrolled}</p>
 		</div>
 	</div>
+	{/if}
 
 	<!-- Gelombang PPDB -->
+	{#if activeTab === 'gelombang'}
 	<div class="bg-card rounded-xl border border-border">
 		<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b bg-muted">
 			<div>
@@ -485,6 +515,7 @@
 							</form>
 							<a
 								href="?batch_id={b.id}#pendaftar"
+								onclick={() => (activeTab = 'pendaftar')}
 								class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-muted/50 text-foreground border border-border hover:bg-muted"
 							>
 								Pendaftar
@@ -511,8 +542,10 @@
 			</div>
 		{/if}
 	</div>
+	{/if}
 
 	<!-- Jalur Pendaftaran -->
+	{#if activeTab === 'jalur'}
 	<div class="bg-card rounded-xl border border-border">
 		<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b bg-muted">
 			<div>
@@ -594,8 +627,10 @@
 			</div>
 		{/if}
 	</div>
+	{/if}
 
 	<!-- Link Pendaftaran Publik per Sekolah -->
+	{#if activeTab === 'link'}
 	<div class="bg-card rounded-xl border border-border p-4 sm:p-5">
 		<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 			<div>
@@ -619,8 +654,10 @@
 			<p class="mt-3 text-xs text-destructive">Slug sekolah belum diatur. Atur di menu Sekolah agar link publik aktif.</p>
 		{/if}
 	</div>
+	{/if}
 
 	<!-- Daftar Pendaftar -->
+	{#if activeTab === 'pendaftar'}
 	<div id="pendaftar" class="bg-card rounded-xl border border-border">
 		<div class="px-5 py-4 border-b bg-muted space-y-3">
 			<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -839,6 +876,42 @@
 			</div>
 		{/if}
 	</div>
+	{/if}
+
+	<!-- Import Nilai -->
+	{#if activeTab === 'nilai'}
+	<div class="bg-card rounded-xl border border-border p-5">
+		<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+			<div>
+				<h2 class="font-bold text-foreground flex items-center gap-2">📥 Import Nilai PPDB</h2>
+				<p class="text-xs text-muted-foreground mt-1">Impor nilai seleksi dari file CSV (bisa disimpan dari Excel). Kolom: <code class="font-mono">nomor_pendaftaran</code>, <code class="font-mono">nilai</code>.</p>
+			</div>
+		</div>
+		<div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
+			<a href="/dashboard/ppdb/template-nilai" class="min-h-10 px-4 py-2 border border-border hover:bg-muted text-foreground text-sm font-medium rounded-lg flex items-center gap-2">
+				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+				Unduh Template (.xlsx)
+			</a>
+		</div>
+		<form method="POST" action="?/importNilai" use:enhance enctype="multipart/form-data" class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+			<input type="file" name="file" accept=".xlsx,.xls" required class="block w-full sm:w-auto text-sm text-foreground file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-primary file:text-primary-foreground file:text-sm file:font-medium" />
+			<button type="submit" class="min-h-10 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium rounded-lg">Import</button>
+		</form>
+		{#if form?.operation === 'importNilai'}
+			<div class="mt-4 px-3 py-2 rounded-lg text-sm {form.success ? 'bg-green-500/10 text-green-600' : 'bg-destructive/10 text-destructive'}">
+				{form.message}
+			</div>
+			{#if form.imported !== undefined}
+				<p class="text-xs text-muted-foreground mt-1">Berhasil diimpor: {form.imported} data. Gagal: {form.failed} data.</p>
+			{/if}
+			{#if form.errors?.length}
+				<ul class="mt-2 text-xs text-destructive list-disc list-inside max-h-40 overflow-auto">
+					{#each form.errors as err}<li>{err}</li>{/each}
+				</ul>
+			{/if}
+		{/if}
+	</div>
+	{/if}
 </div>
 
 <!-- ============================================================
