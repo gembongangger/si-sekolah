@@ -1,5 +1,10 @@
 import { z } from 'zod';
 
+// digits dari clipboard/HP bisa mengandung spasi, tanda baca, atau digit full-width
+export function normalizeDigits(value: string): string {
+	return value.normalize('NFKD').replace(/\D/g, '');
+}
+
 export const ppdbRegistrationSchema = z.object({
 	school_id: z.coerce.number().int().positive('Pilih sekolah'),
 	batch_id: z.coerce.number().int().positive('Pilih gelombang pendaftaran'),

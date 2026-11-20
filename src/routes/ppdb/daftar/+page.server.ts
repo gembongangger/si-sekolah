@@ -2,7 +2,7 @@ import { fail, redirect, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { schools, ppdbBatches, academicYears, ppdbRegistrations, ppdbTracks, ppdbRegistrationDocuments } from '$lib/server/db/schema';
 import { eq, and, isNull, desc, count, ne } from 'drizzle-orm';
-import { ppdbRegistrationSchema, DEFAULT_PPDB_TRACKS } from '$lib/validation/ppdb';
+import { ppdbRegistrationSchema, DEFAULT_PPDB_TRACKS, normalizeDigits } from '$lib/validation/ppdb';
 import { uploadFile, generateKey } from '$lib/server/services/storage';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -142,8 +142,8 @@ export const actions: Actions = {
 			school_id: formData.get('school_id'),
 			batch_id: formData.get('batch_id'),
 			full_name: formData.get('full_name')?.toString().trim(),
-			nisn: formData.get('nisn')?.toString().trim() || undefined,
-			nik: formData.get('nik')?.toString().trim() || undefined,
+			nisn: normalizeDigits(formData.get('nisn')?.toString() ?? '') || undefined,
+			nik: normalizeDigits(formData.get('nik')?.toString() ?? '') || undefined,
 			gender: formData.get('gender')?.toString(),
 			birth_place: formData.get('birth_place')?.toString().trim() || undefined,
 			birth_date: formData.get('birth_date')?.toString().trim(),

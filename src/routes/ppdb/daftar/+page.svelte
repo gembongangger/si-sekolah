@@ -566,7 +566,6 @@
 									id="nisn"
 									type="text"
 									name="nisn"
-									maxlength="10"
 									inputmode="numeric"
 									value={form?.values?.nisn ?? ''}
 									placeholder="Contoh: 0071234567"

@@ -179,7 +179,6 @@
 						id="nisn"
 						type="text"
 						name="nisn"
-						maxlength="10"
 						value={data.nisnParam}
 						placeholder="10 digit NISN"
 						class="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm focus:bg-card focus:outline-none focus:ring-2 focus:ring-ring"
