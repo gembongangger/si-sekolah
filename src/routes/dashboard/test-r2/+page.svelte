@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { enhance } from '@sveltejs/kit';
 	let { data, form }: any = $props();
 </script>
 
@@ -11,7 +10,7 @@
 	<div class="max-w-md p-6 bg-card rounded-xl border shadow-sm">
 		<h2 class="text-lg font-bold mb-4">Test Upload R2</h2>
 
-		<form method="POST" action="?/default" use:enhance enctype="multipart/form-data">
+		<form method="POST" enctype="multipart/form-data">
 			<label class="block mb-2 text-sm font-medium">File</label>
 			<input
 				type="file"

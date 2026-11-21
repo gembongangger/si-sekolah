@@ -4,6 +4,8 @@ import { schools, ppdbBatches, academicYears, ppdbRegistrations, ppdbTracks, ppd
 import { eq, and, isNull, desc, count, ne } from 'drizzle-orm';
 import { ppdbRegistrationSchema, DEFAULT_PPDB_TRACKS, normalizeDigits } from '$lib/validation/ppdb';
 import { uploadFile, generateKey } from '$lib/server/services/storage';
+import { env as cloudflareEnv } from 'cloudflare:workers';
+import type { R2Bucket } from '@cloudflare/workers-types';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const db = locals.db;

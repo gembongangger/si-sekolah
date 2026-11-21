@@ -9,7 +9,7 @@ export const ppdbRegistrationSchema = z.object({
 	school_id: z.coerce.number().int().positive('Pilih sekolah'),
 	batch_id: z.coerce.number().int().positive('Pilih gelombang pendaftaran'),
 	full_name: z.string().min(3, 'Nama lengkap minimal 3 karakter'),
-	nisn: z.string().regex(/^\d{10}$/, 'NISN harus 10 digit angka').optional().or(z.literal('')),
+	nisn: z.string().optional().or(z.literal('')),
 	nik: z.string().regex(/^\d{16}$/, 'NIK harus 16 digit angka').optional().or(z.literal('')),
 	gender: z.enum(['L', 'P']),
 	birth_place: z.string().optional(),
