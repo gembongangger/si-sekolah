@@ -125,10 +125,10 @@
 	<!-- Sidebar -->
 	<aside
 		class="fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transform transition-transform duration-200
-			{sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static lg:inset-auto"
+			flex flex-col {sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static lg:inset-auto"
 	>
 		<!-- Logo & Nama Aplikasi -->
-		<div class="flex items-center gap-3 px-6 py-5 border-b border-border">
+		<div class="flex items-center gap-3 px-6 py-5 border-b border-border shrink-0">
 			<div class="w-9 h-9 bg-primary rounded-xl flex items-center justify-center flex-shrink-0">
 				<svg class="w-5 h-5 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 					<path
@@ -152,7 +152,7 @@
 		</div>
 
 		<!-- Nav Items -->
-		<nav class="px-3 py-4 flex-1 space-y-0.5">
+		<nav class="px-3 py-4 flex-1 overflow-y-auto space-y-0.5">
 			{#each navItems() as item}
 				{@const Icon = iconMap[item.icon] ?? House}
 				<a
@@ -167,7 +167,7 @@
 		</nav>
 
 		<!-- User Footer -->
-		<div class="border-t border-border px-4 py-4">
+		<div class="border-t border-border px-4 py-4 shrink-0">
 			<div class="flex items-center gap-3 mb-3">
 				<div
 					class="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary-foreground font-semibold text-sm flex-shrink-0"

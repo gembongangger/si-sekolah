@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import BarChart from '$lib/components/ui/bar-chart.svelte';
-	import DonutChart from '$lib/components/ui/donut-chart.svelte';
+	import Chart from '$lib/components/ui/chart.svelte';
 
 	let { data }: { data: PageData } = $props();
 	const { user, stats, recentPayments } = data;
@@ -76,7 +75,7 @@
 		<div class="bg-card rounded-xl border border-border p-5 mb-8">
 			<h2 class="text-sm font-semibold text-foreground mb-4">Status Sekolah</h2>
 			<div class="max-w-xs mx-auto">
-				<DonutChart data={charts.schoolsByStatus ?? []} centerValue={String(stats?.totalSekolah ?? 0)} centerLabel="Total" />
+				<Chart type="doughnut" data={charts.schoolsByStatus ?? []} centerValue={String(stats?.totalSekolah ?? 0)} centerLabel="Total" />
 			</div>
 		</div>
 
@@ -136,18 +135,18 @@
 		<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
 			<div class="bg-card rounded-xl border border-border p-5">
 				<h2 class="text-sm font-semibold text-foreground mb-4">Siswa per Kelas</h2>
-				<div class="h-40"><BarChart data={charts.studentsPerClass ?? []} /></div>
+				<div class="h-40"><Chart type="bar" data={charts.studentsPerClass ?? []} /></div>
 			</div>
 			<div class="bg-card rounded-xl border border-border p-5">
 				<h2 class="text-sm font-semibold text-foreground mb-4">Status Pendaftar PPDB</h2>
 				<div class="max-w-xs mx-auto">
-					<DonutChart data={charts.ppdbByStatus ?? []} centerValue={String((charts.ppdbByStatus ?? []).reduce((a: number, b: any) => a + b.value, 0))} centerLabel="Pendaftar" />
+					<Chart type="doughnut" data={charts.ppdbByStatus ?? []} centerValue={String((charts.ppdbByStatus ?? []).reduce((a: number, b: any) => a + b.value, 0))} centerLabel="Pendaftar" />
 				</div>
 			</div>
 		</div>
 		<div class="bg-card rounded-xl border border-border p-5 mb-8">
 			<h2 class="text-sm font-semibold text-foreground mb-4">Pendaftar per Jalur</h2>
-			<div class="h-40"><BarChart data={charts.ppdbByTrack ?? []} /></div>
+			<div class="h-40"><Chart type="bar" data={charts.ppdbByTrack ?? []} /></div>
 		</div>
 
 	<!-- ADMIN KEUANGAN -->
@@ -179,12 +178,12 @@
 		<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
 			<div class="bg-card rounded-xl border border-border p-5">
 				<h2 class="text-sm font-semibold text-foreground mb-4">Pembayaran SPP per Bulan</h2>
-				<div class="h-40"><BarChart data={charts.paymentsByMonth ?? []} color="var(--success)" /></div>
+				<div class="h-40"><Chart type="bar" data={charts.paymentsByMonth ?? []} /></div>
 			</div>
 			<div class="bg-card rounded-xl border border-border p-5">
 				<h2 class="text-sm font-semibold text-foreground mb-4">Status Tagihan SPP</h2>
 				<div class="max-w-xs mx-auto">
-					<DonutChart data={charts.sppStatus ?? []} centerValue={formatRupiah(stats?.totalKasMasuk ?? 0)} centerLabel="Kas Masuk" />
+					<Chart type="doughnut" data={charts.sppStatus ?? []} centerValue={formatRupiah(stats?.totalKasMasuk ?? 0)} centerLabel="Kas Masuk" />
 				</div>
 			</div>
 		</div>
@@ -303,7 +302,7 @@
 		<div class="bg-card rounded-xl border border-border p-5 mb-6">
 			<h2 class="text-sm font-semibold text-foreground mb-4">Status SPP Saya</h2>
 			<div class="max-w-xs mx-auto">
-				<DonutChart data={charts.sppStatus ?? []} centerValue={String(stats?.sppLunas ?? 0)} centerLabel="Bulan Lunas" />
+				<Chart type="doughnut" data={charts.sppStatus ?? []} centerValue={String(stats?.sppLunas ?? 0)} centerLabel="Bulan Lunas" />
 			</div>
 		</div>
 		<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
