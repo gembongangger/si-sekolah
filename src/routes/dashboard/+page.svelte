@@ -1,8 +1,11 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import BarChart from '$lib/components/ui/bar-chart.svelte';
+	import DonutChart from '$lib/components/ui/donut-chart.svelte';
 
 	let { data }: { data: PageData } = $props();
 	const { user, stats, recentPayments } = data;
+	const charts: any = data.charts ?? {};
 
 	const roleLabels: Record<string, string> = {
 		superadmin: 'Superadmin',
@@ -69,6 +72,14 @@
 			</a>
 		</div>
 
+		<!-- Grafik Sekolah -->
+		<div class="bg-card rounded-xl border border-border p-5 mb-8">
+			<h2 class="text-sm font-semibold text-foreground mb-4">Status Sekolah</h2>
+			<div class="max-w-xs mx-auto">
+				<DonutChart data={charts.schoolsByStatus ?? []} centerValue={String(stats?.totalSekolah ?? 0)} centerLabel="Total" />
+			</div>
+		</div>
+
 	<!-- ADMIN SEKOLAH -->
 	{:else if user.role === 'admin_sekolah'}
 		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
@@ -121,6 +132,24 @@
 			</a>
 		</div>
 
+		<!-- Grafik Admin Sekolah -->
+		<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+			<div class="bg-card rounded-xl border border-border p-5">
+				<h2 class="text-sm font-semibold text-foreground mb-4">Siswa per Kelas</h2>
+				<div class="h-40"><BarChart data={charts.studentsPerClass ?? []} /></div>
+			</div>
+			<div class="bg-card rounded-xl border border-border p-5">
+				<h2 class="text-sm font-semibold text-foreground mb-4">Status Pendaftar PPDB</h2>
+				<div class="max-w-xs mx-auto">
+					<DonutChart data={charts.ppdbByStatus ?? []} centerValue={String((charts.ppdbByStatus ?? []).reduce((a: number, b: any) => a + b.value, 0))} centerLabel="Pendaftar" />
+				</div>
+			</div>
+		</div>
+		<div class="bg-card rounded-xl border border-border p-5 mb-8">
+			<h2 class="text-sm font-semibold text-foreground mb-4">Pendaftar per Jalur</h2>
+			<div class="h-40"><BarChart data={charts.ppdbByTrack ?? []} /></div>
+		</div>
+
 	<!-- ADMIN KEUANGAN -->
 	{:else if user.role === 'admin_keuangan'}
 		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -143,6 +172,20 @@
 				<p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Siswa Terdaftar</p>
 				<p class="text-2xl font-bold text-primary-foreground mt-2">{stats?.totalSiswa ?? 0}</p>
 				<p class="text-xs text-muted-foreground mt-1">Tahun ajaran {stats?.activeYearName ?? '-'}</p>
+			</div>
+		</div>
+
+		<!-- Grafik Keuangan -->
+		<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+			<div class="bg-card rounded-xl border border-border p-5">
+				<h2 class="text-sm font-semibold text-foreground mb-4">Pembayaran SPP per Bulan</h2>
+				<div class="h-40"><BarChart data={charts.paymentsByMonth ?? []} color="var(--success)" /></div>
+			</div>
+			<div class="bg-card rounded-xl border border-border p-5">
+				<h2 class="text-sm font-semibold text-foreground mb-4">Status Tagihan SPP</h2>
+				<div class="max-w-xs mx-auto">
+					<DonutChart data={charts.sppStatus ?? []} centerValue={formatRupiah(stats?.totalKasMasuk ?? 0)} centerLabel="Kas Masuk" />
+				</div>
 			</div>
 		</div>
 
@@ -257,6 +300,12 @@
 		</div>
 
 	{:else if user.role === 'siswa'}
+		<div class="bg-card rounded-xl border border-border p-5 mb-6">
+			<h2 class="text-sm font-semibold text-foreground mb-4">Status SPP Saya</h2>
+			<div class="max-w-xs mx-auto">
+				<DonutChart data={charts.sppStatus ?? []} centerValue={String(stats?.sppLunas ?? 0)} centerLabel="Bulan Lunas" />
+			</div>
+		</div>
 		<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
 			<a href="/dashboard/keuangan" class="block bg-card rounded-xl border border-border p-5 hover:shadow-md hover:border-primary transition-all group">
 				<p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status Pembayaran SPP</p>

@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types';
 import { eq, count, and, isNull, sql, desc } from 'drizzle-orm';
-import { schools, users, teachers, students, sppPayments, classes, academicYears } from '$lib/server/db/schema';
+import { schools, users, teachers, students, sppPayments, classes, academicYears, ppdbRegistrations } from '$lib/server/db/schema';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const user = locals.user!; // dijamin oleh +layout.server.ts
@@ -16,29 +16,49 @@ export const load: PageServerLoad = async ({ locals }) => {
 				.where(and(isNull(users.deleted_at), eq(users.role, 'admin_sekolah')))
 		]);
 
+		const [activeSchools, inactiveSchools] = await db.batch([
+			db.select({ count: count() }).from(schools).where(and(isNull(schools.deleted_at), eq(schools.is_active, 1))),
+			db.select({ count: count() }).from(schools).where(and(isNull(schools.deleted_at), eq(schools.is_active, 0)))
+		]);
+
 		return {
 			stats: {
 				totalSekolah: schoolCount[0]?.count ?? 0,
 				totalAdminSekolah: userCount[0]?.count ?? 0
+			},
+			charts: {
+				schoolsByStatus: [
+					{ label: 'Aktif', value: Number(activeSchools[0]?.count ?? 0) },
+					{ label: 'Nonaktif', value: Number(inactiveSchools[0]?.count ?? 0) }
+				]
 			}
 		};
 	}
 
 	if (user.role === 'admin_sekolah' && user.schoolId) {
 		const schoolId = user.schoolId;
-		const [teacherCount, studentCount, kasMasuk] = await Promise.all([
+		const [teacherCount, studentCount, kasMasuk, studentsPerClass, ppdbByStatus, ppdbByTrack] = await Promise.all([
+			db.select({ count: count() }).from(teachers).where(eq(teachers.school_id, schoolId)),
+			db.select({ count: count() }).from(students).where(eq(students.school_id, schoolId)),
+			db.select({ total: sql<number>`COALESCE(SUM(amount_paid), 0)` }).from(sppPayments).where(eq(sppPayments.school_id, schoolId)),
 			db
-				.select({ count: count() })
-				.from(teachers)
-				.where(eq(teachers.school_id, schoolId)),
-			db
-				.select({ count: count() })
+				.select({ name: classes.name, total: count() })
 				.from(students)
-				.where(eq(students.school_id, schoolId)),
+				.leftJoin(classes, eq(students.class_id, classes.id))
+				.where(eq(students.school_id, schoolId))
+				.groupBy(classes.name)
+				.orderBy(desc(count()))
+				.limit(8),
 			db
-				.select({ total: sql<number>`COALESCE(SUM(amount_paid), 0)` })
-				.from(sppPayments)
-				.where(eq(sppPayments.school_id, schoolId))
+				.select({ status: ppdbRegistrations.status, total: count() })
+				.from(ppdbRegistrations)
+				.where(eq(ppdbRegistrations.school_id, schoolId))
+				.groupBy(ppdbRegistrations.status),
+			db
+				.select({ track: ppdbRegistrations.track, total: count() })
+				.from(ppdbRegistrations)
+				.where(eq(ppdbRegistrations.school_id, schoolId))
+				.groupBy(ppdbRegistrations.track)
 		]);
 
 		return {
@@ -46,6 +66,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 				totalGuru: teacherCount[0]?.count ?? 0,
 				totalSiswa: studentCount[0]?.count ?? 0,
 				totalKasSPP: Number(kasMasuk[0]?.total ?? 0)
+			},
+			charts: {
+				studentsPerClass: studentsPerClass.map((r) => ({ label: r.name ?? '?', value: Number(r.total) })),
+				ppdbByStatus: ppdbByStatus.map((r) => ({ label: r.status, value: Number(r.total) })),
+				ppdbByTrack: ppdbByTrack.map((r) => ({ label: r.track, value: Number(r.total) }))
 			}
 		};
 	}
@@ -95,6 +120,20 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const tagihan = Number(totalTagihan[0]?.total ?? 0);
 		const tunggakan = Math.max(0, tagihan - kasMasuk);
 
+		const [paymentsByMonth, sppStatusRows] = await Promise.all([
+			db
+				.select({ month: sppPayments.month, monthName: sppPayments.month_name, total: sql<number>`COALESCE(SUM(amount_paid), 0)` })
+				.from(sppPayments)
+				.where(and(eq(sppPayments.school_id, schoolId), eq(sppPayments.status, 'paid')))
+				.groupBy(sppPayments.month, sppPayments.month_name)
+				.orderBy(sql`${sppPayments.month} ASC`),
+			db
+				.select({ status: sppPayments.status, total: count() })
+				.from(sppPayments)
+				.where(eq(sppPayments.school_id, schoolId))
+				.groupBy(sppPayments.status)
+		]);
+
 		return {
 			stats: {
 				totalKasMasuk: kasMasuk,
@@ -103,7 +142,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 				totalSiswa: studentCount[0]?.count ?? 0,
 				activeYearName: activeYear ? `${activeYear.name} (${activeYear.semester})` : '-'
 			},
-			recentPayments
+			recentPayments,
+			charts: {
+				paymentsByMonth: paymentsByMonth.map((r) => ({ label: r.monthName, value: Number(r.total) })),
+				sppStatus: sppStatusRows.map((r) => ({ label: r.status === 'paid' ? 'Lunas' : 'Pending', value: Number(r.total) }))
+			}
 		};
 	}
 
@@ -129,10 +172,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 				stats: {
 					sppLunas: paidCount[0]?.count ?? 0,
 					sppPending: pendingCount[0]?.count ?? 0
+				},
+				charts: {
+					sppStatus: [
+						{ label: 'Lunas', value: Number(paidCount[0]?.count ?? 0) },
+						{ label: 'Pending', value: Number(pendingCount[0]?.count ?? 0) }
+					]
 				}
 			};
 		}
 	}
 
-	return { stats: {} };
+	return { stats: {}, charts: {} };
 };
