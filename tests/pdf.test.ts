@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { jpegBytesToPdf, jpegToPdfNode } from '../src/lib/pdf';
+import { jpegBytesToPdf, jpegPagesToPdf, jpegToPdfNode } from '../src/lib/pdf';
 
 // Minimal 1x1 JPEG
 const MIN_JPEG = new Uint8Array([
@@ -33,6 +33,33 @@ const MIN_JPEG = new Uint8Array([
 	0xff, 0xda, 0x00, 0x0c, 0x03, 0x01, 0x00, 0x02, 0x11, 0x03, 0x11, 0x00,
 	0x3f, 0x00, 0xff, 0xd9
 ]);
+
+describe('jpegPagesToPdf', () => {
+	const pdf = jpegPagesToPdf([
+		{ jpeg: MIN_JPEG, width: 10, height: 20 },
+		{ jpeg: MIN_JPEG, width: 30, height: 40 }
+	]);
+
+	it('produces a 2-page PDF with valid xref', () => {
+		const text = new TextDecoder().decode(pdf);
+		expect(text).toContain('/Type /Pages /Kids [3 0 R 6 0 R] /Count 2');
+		expect(text).toContain('/Size 9 /Root 1 0 R');
+		const xrefAt = text.indexOf('xref\n');
+		const offsets = [...text.slice(xrefAt).matchAll(/^(\d{10}) 00000 n $/gm)].map((m) => Number(m[1]));
+		expect(offsets.length).toBe(8);
+		for (const off of offsets) {
+			expect(new TextDecoder().decode(pdf.slice(off, off + 7))).toMatch(/^\d 0 obj/);
+		}
+	});
+
+	it('embeds both JPEG streams', () => {
+		let count = 0;
+		for (let i = 0; i <= pdf.length - MIN_JPEG.length; i++) {
+			if (pdf[i] === MIN_JPEG[0] && pdf.subarray(i, i + MIN_JPEG.length).every((b, j) => b === MIN_JPEG[j])) count++;
+		}
+		expect(count).toBe(2);
+	});
+});
 
 describe('jpegBytesToPdf', () => {
 	const pdf = jpegBytesToPdf(MIN_JPEG, 10, 20);

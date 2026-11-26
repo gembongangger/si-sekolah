@@ -102,9 +102,6 @@
 		return 'Rp ' + Number(num).toLocaleString('id-ID');
 	}
 
-	function printPage() {
-		window.print();
-	}
 </script>
 
 <svelte:head>
@@ -275,13 +272,13 @@
 				<div class="bg-card rounded-2xl border border-border shadow-sm p-6 sm:p-7 space-y-5">
 					<div class="flex items-center justify-between border-b border-border pb-3">
 						<h3 class="font-bold text-foreground">Data Pendaftaran</h3>
-						<button
-							type="button"
-							onclick={printPage}
-							class="no-print px-3 py-1.5 bg-muted hover:bg-slate-200 text-foreground text-xs font-semibold rounded-lg transition-colors"
+						<a
+							href={`/ppdb/status/bukti?num=${reg?.registrationNumber ?? ''}`}
+							target="_blank"
+							class="no-print px-3 py-1.5 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold rounded-lg transition-colors"
 						>
-							🖨️ Cetak Bukti
-						</button>
+							📄 Unduh / Cetak Bukti PDF
+						</a>
 					</div>
 
 					<dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">

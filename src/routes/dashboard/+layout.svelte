@@ -74,6 +74,7 @@
 					{ href: '/dashboard/jadwal', label: 'Jadwal', icon: 'calendar' },
 					{ href: '/dashboard/sanksi', label: 'Sanksi Poin', icon: 'alert-circle' },
 					{ href: '/dashboard/pengumpulan', label: 'Pengumpulan Berkas', icon: 'folder-up' },
+					{ href: '/dashboard/piket-kbm', label: 'Piket KBM', icon: 'clipboard' },
 					{ href: '/dashboard/pengaturan', label: 'Pengaturan Tema', icon: 'sliders' },
 					{ href: '/dashboard/pelanggaran', label: 'Pelanggaran', icon: 'exclamation' }
 				];
@@ -92,6 +93,7 @@
 					{ href: '/dashboard/jadwal', label: 'Jadwal Saya', icon: 'calendar' },
 					{ href: '/dashboard/siswa', label: 'Data Siswa', icon: 'users' },
 					{ href: '/dashboard/pengumpulan', label: 'Pengumpulan Berkas', icon: 'folder-up' },
+					{ href: '/dashboard/piket-kbm', label: 'Piket KBM', icon: 'clipboard' },
 					{ href: '/dashboard/pelanggaran', label: 'Catat Pelanggaran', icon: 'exclamation' }
 				];
 			case 'siswa':

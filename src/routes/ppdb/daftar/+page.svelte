@@ -2,7 +2,7 @@
 	import { untrack } from 'svelte';
 	import type { PageData, ActionData } from './$types';
 	import { DEFAULT_PPDB_TRACKS } from '$lib/validation/ppdb';
-	import { imageFileToCompressedPdf } from '$lib/pdf';
+	import { imageFileToCompressedPdf, blobsToCompressedPdf } from '$lib/pdf';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -210,74 +210,122 @@
 		}
 	}
 
-	// ── Kamera dokumen ────────────────────────────────────────
-	let docCameraKey: string | null = $state(null);
-	let docVideoEl: HTMLVideoElement | null = $state(null);
-	let docCanvasRef: HTMLCanvasElement | null = $state(null);
-	let docStream: MediaStream | null = $state(null);
-	let docCamError = $state('');
-	let docLoadingCam = $state(false);
+	// ── Kamera dokumen (multi-page scanner) ────────────────────────
+interface DocPage {
+	blob: Blob;
+	url: string;
+	width: number;
+	height: number;
+	enhanced: boolean;
+}
+let docCameraKey: string | null = $state(null);
+let docVideoEl: HTMLVideoElement | null = $state(null);
+let docCanvasRef: HTMLCanvasElement | null = $state(null);
+let docStream: MediaStream | null = $state(null);
+let docCamError = $state('');
+let docLoadingCam = $state(false);
+let docPages = $state<DocPage[]>([]);
+let docEnhance = $state(false);
 
-	async function openDocCamera(key: string) {
-		docCameraKey = key;
-		docCamError = '';
-		docLoadingCam = true;
-		await sleep(100);
-		try {
-			const stream = await navigator.mediaDevices.getUserMedia({
-				video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
-			});
-			docStream = stream;
-			if (docVideoEl) docVideoEl.srcObject = stream;
-		} catch {
-			docCamError = 'Akses kamera ditolak. Izinkan akses kamera di pengaturan browser.';
-		} finally {
-			docLoadingCam = false;
-		}
-	}
-
-	function stopDocCamera() {
-		if (docStream) {
-			docStream.getTracks().forEach((t) => t.stop());
-			docStream = null;
-		}
-	}
-
-	function closeDocCamera() {
-		stopDocCamera();
-		docCameraKey = null;
-	}
-
-	async function captureDocPhoto() {
-		if (!docVideoEl || !docCanvasRef || !docCameraKey) return;
-		docCanvasRef.width = docVideoEl.videoWidth;
-		docCanvasRef.height = docVideoEl.videoHeight;
-		docCanvasRef.getContext('2d')!.drawImage(docVideoEl, 0, 0);
-		const blob = await new Promise<Blob | null>((resolve) => {
-			docCanvasRef!.toBlob(resolve, 'image/jpeg', 0.85);
+async function openDocCamera(key: string) {
+	docCameraKey = key;
+	docPages = [];
+	docEnhance = false;
+	docCamError = '';
+	docLoadingCam = true;
+	await sleep(100);
+	try {
+		const stream = await navigator.mediaDevices.getUserMedia({
+			video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
 		});
-		if (!blob) return;
-		const key = docCameraKey;
-		const jpeg = new File([blob], `doc-${key}-${Date.now()}.jpg`, { type: 'image/jpeg' });
-		closeDocCamera();
-		docConverting = { ...docConverting, [key]: true };
-		try {
-			const pdf = await imageFileToCompressedPdf(jpeg, { label: key });
-			await setDocFile(key, pdf);
-		} catch (err) {
-			console.error('Gagal konversi hasil kamera ke PDF:', err);
-			docCamError = 'Gagal mengonversi foto ke PDF. Coba lagi.';
-			docCameraKey = key;
-		} finally {
-			docConverting = { ...docConverting, [key]: false };
-		}
+		docStream = stream;
+		if (docVideoEl) docVideoEl.srcObject = stream;
+	} catch {
+		docCamError = 'Akses kamera ditolak. Izinkan akses kamera di pengaturan browser.';
+	} finally {
+		docLoadingCam = false;
 	}
+}
 
-	function sleep(ms: number): Promise<void> {
-		return new Promise((r) => setTimeout(r, ms));
+function stopDocCamera() {
+	if (docStream) {
+		docStream.getTracks().forEach((t) => t.stop());
+		docStream = null;
 	}
+}
 
-	// ── Wizard bertahap ────────────────────────────────────────
+function closeDocCamera() {
+	stopDocCamera();
+	for (const page of docPages) URL.revokeObjectURL(page.url);
+	docCameraKey = null;
+	docPages = [];
+}
+
+function enhanceCanvas(ctx: CanvasRenderingContext2D, w: number, h: number) {
+	// grayscale + slight contrast boost
+	const imgData = ctx.getImageData(0, 0, w, h);
+	const data = imgData.data;
+	for (let i = 0; i < data.length; i += 4) {
+		const r = data[i], g = data[i+1], b = data[i+2];
+		const gray = 0.299*r + 0.587*g + 0.114*b;
+		const v = Math.min(255, Math.max(0, (gray - 128) * 1.15 + 128 + 12));
+		data[i] = data[i+1] = data[i+2] = v;
+	}
+	ctx.putImageData(imgData, 0, 0);
+}
+
+async function captureDocPage() {
+	if (!docVideoEl || !docCanvasRef || !docCameraKey) return;
+	docCanvasRef.width = docVideoEl.videoWidth;
+	docCanvasRef.height = docVideoEl.videoHeight;
+	const ctx = docCanvasRef.getContext('2d')!;
+	ctx.drawImage(docVideoEl, 0, 0);
+	if (docEnhance) enhanceCanvas(ctx, docCanvasRef.width, docCanvasRef.height);
+	const blob = await new Promise<Blob | null>((resolve) => {
+		docCanvasRef!.toBlob(resolve, 'image/jpeg', 0.85);
+	});
+	if (!blob) return;
+	docPages = [...docPages, {
+		blob,
+		url: URL.createObjectURL(blob),
+		width: docCanvasRef.width,
+		height: docCanvasRef.height,
+		enhanced: docEnhance
+	}];
+}
+
+function removeDocPage(idx: number) {
+	const page = docPages[idx];
+	if (page) URL.revokeObjectURL(page.url);
+	docPages = docPages.filter((_, i) => i !== idx);
+}
+
+function toggleEnhance() {
+	docEnhance = !docEnhance;
+}
+
+async function finishDocScan() {
+	if (!docCameraKey || docPages.length === 0) return;
+	const key = docCameraKey;
+	const pages = docPages;
+	closeDocCamera();
+	docConverting = { ...docConverting, [key]: true };
+	try {
+		const pdf = await blobsToCompressedPdf(
+			pages.map((p) => ({ blob: p.blob, width: p.width, height: p.height })),
+			{ label: key }
+		);
+		await setDocFile(key, pdf);
+	} catch (err) {
+		console.error('Gagal mengonversi halaman ke PDF:', err);
+		docCamError = 'Gagal mengonversi halaman ke PDF. Coba lagi.';
+		docCameraKey = key;
+	} finally {
+		docConverting = { ...docConverting, [key]: false };
+	}
+}
+
+// ── Wizard bertahap ────────────────────────────────────────
 	const TOTAL_STEPS = 5;
 	let step = $state(1);
 	let formEl: HTMLFormElement | null = $state(null);
@@ -733,7 +781,7 @@
 												<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 													<path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.127 2.127 0 0 1 9 5h6a2.127 2.127 0 0 1 2.172 1.175M18 12.33V18a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-5.67M12 9.5a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/>
 												</svg>
-												Ambil Foto
+												Tambah Halaman
 											</button>
 											<button
 												type="button"
@@ -766,6 +814,17 @@
 									class="w-full aspect-[4/3] bg-slate-900 rounded-t-2xl"
 								></video>
 								<canvas class="hidden" bind:this={docCanvasRef}></canvas>
+								{#if docPages.length > 0}
+									<div class="mt-3 space-y-2 max-h-40 overflow-y-auto">
+										{#each docPages as page, idx (idx)}
+											<div class="flex items-center gap-2 bg-muted rounded p-1 border">
+												<img src={page.url} class="w-10 h-10 object-cover rounded bg-white" alt="halaman" />
+												<span class="text-xs text-muted-foreground truncate flex-1">{page.enhanced ? 'Scan' : 'Foto'} {page.width}×{page.height}</span>
+												<button type="button" onclick={() => removeDocPage(idx)} class="p-1 text-destructive hover:bg-red-50 rounded" aria-label="Hapus halaman">×</button>
+											</div>
+										{/each}
+									</div>
+								{/if}
 								{#if docLoadingCam}
 									<div
 										class="absolute inset-0 flex items-center justify-center bg-slate-900/60 rounded-t-2xl"
@@ -784,7 +843,7 @@
 								<div class="flex items-center gap-3">
 									<button
 										type="button"
-										onclick={captureDocPhoto}
+										onclick={captureDocPage}
 										disabled={!docStream}
 										class="flex-1 py-3 bg-success hover:bg-success/90 disabled:bg-slate-300 text-success-foreground text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
 									>
@@ -800,6 +859,16 @@
 									>
 										Batal
 									</button>
+								{#if docEnhance}
+									<button type="button" onclick={toggleEnhance} class="w-full py-2 text-xs text-muted-foreground hover:text-foreground border border-border rounded-lg">Matikan peningkatan (scan)</button>
+								{:else}
+									<button type="button" onclick={toggleEnhance} class="w-full py-2 text-xs text-muted-foreground hover:text-foreground border border-border rounded-lg">Aktifkan peningkatan (scan)</button>
+								{/if}
+								{#if docPages.length > 0}
+									<button type="button" onclick={finishDocScan} disabled={docConverting[docCameraKey ?? '']} class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white text-sm font-bold rounded-xl transition-colors">📄 Simpan {docPages.length} Halaman</button>
+								{:else}
+									<button type="button" disabled class="w-full py-2.5 bg-slate-200 text-slate-500 text-sm font-bold rounded-xl">Simpan Halaman</button>
+								{/if}
 								</div>
 							</div>
 						</div>

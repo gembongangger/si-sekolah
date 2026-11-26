@@ -1097,6 +1097,107 @@ export const collectionSubmissions = sqliteTable(
 	]
 );
 
+// Piket KBM: pengajuan izin berhalangan mengajar pada jam tertentu
+// diisi guru (self), disetujui admin_sekolah.
+export const piketKbmRequests = sqliteTable(
+	'piket_kbm_requests',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		school_id: integer('school_id').notNull(),
+		teacher_id: integer('teacher_id').notNull(),
+		date: text('date').notNull(),
+		time_slot_id: integer('time_slot_id').notNull(),
+		slot_label: text('slot_label').notNull(),
+		reason: text('reason').notNull(),
+		task_note: text('task_note'),
+		attachment_key: text('attachment_key'),
+		attachment_name: text('attachment_name'),
+		status: text('status').notNull().default('pending'),
+		reviewed_by: integer('reviewed_by'),
+		reviewed_at: integer('reviewed_at'),
+		review_note: text('review_note'),
+		created_at: integer('created_at').notNull().default(sql`(unixepoch('subsec') * 1000)`),
+		updated_at: integer('updated_at').notNull().default(sql`(unixepoch('subsec') * 1000)`),
+		deleted_at: integer('deleted_at')
+	},
+	(t): SQLiteTableExtraConfigValue[] => [
+		index('idx_piket_kbm_school_status').on(t.school_id, t.status),
+		index('idx_piket_kbm_school_date_teacher').on(t.school_id, t.date, t.teacher_id),
+		index('idx_piket_kbm_deleted_at').on(t.deleted_at),
+		check('piket_kbm_status_check', sql`status IN ('pending', 'approved', 'rejected')`),
+		foreignKey({
+			name: 'piket_kbm_school_id_schools_id_fk',
+			columns: [t.school_id],
+			foreignColumns: [schools.id]
+		}).onDelete('cascade'),
+		foreignKey({
+			name: 'piket_kbm_teacher_id_teachers_id_fk',
+			columns: [t.teacher_id],
+			foreignColumns: [teachers.id]
+		}).onDelete('cascade'),
+		foreignKey({
+			name: 'piket_kbm_time_slot_id_time_slots_id_fk',
+			columns: [t.time_slot_id],
+			foreignColumns: [timeSlots.id]
+		}).onDelete('cascade'),
+		foreignKey({
+			name: 'piket_kbm_reviewed_by_users_id_fk',
+			columns: [t.reviewed_by],
+			foreignColumns: [users.id]
+		}).onDelete('set null')
+	]
+);
+
+
+// Piket KBM: entri manual ketidakhadiran guru oleh guru piket / admin.
+export const piketKbmManualAbsences = sqliteTable(
+	'piket_kbm_manual_absences',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		school_id: integer('school_id').notNull(),
+		date: text('date').notNull(),
+		class_id: integer('class_id').notNull(),
+		time_slot_id: integer('time_slot_id').notNull(),
+		teacher_id: integer('teacher_id').notNull(),
+		note: text('note'),
+		recorded_by: integer('recorded_by').notNull(),
+		created_at: integer('created_at').notNull().default(sql`(unixepoch('subsec') * 1000)`),
+		deleted_at: integer('deleted_at')
+	},
+	(t): SQLiteTableExtraConfigValue[] => [
+		index('idx_piket_manual_school_date').on(t.school_id, t.date),
+		index('idx_piket_manual_deleted_at').on(t.deleted_at),
+		unique('piket_manual_unique').on(t.school_id, t.date, t.class_id, t.time_slot_id, t.teacher_id),
+		foreignKey({
+			name: 'piket_manual_school_id_schools_id_fk',
+			columns: [t.school_id],
+			foreignColumns: [schools.id]
+		}).onDelete('cascade'),
+		foreignKey({
+			name: 'piket_manual_class_id_classes_id_fk',
+			columns: [t.class_id],
+			foreignColumns: [classes.id]
+		}).onDelete('cascade'),
+		foreignKey({
+			name: 'piket_manual_time_slot_id_time_slots_id_fk',
+			columns: [t.time_slot_id],
+			foreignColumns: [timeSlots.id]
+		}).onDelete('cascade'),
+		foreignKey({
+			name: 'piket_manual_teacher_id_teachers_id_fk',
+			columns: [t.teacher_id],
+			foreignColumns: [teachers.id]
+		}).onDelete('cascade'),
+		foreignKey({
+			name: 'piket_manual_recorded_by_users_id_fk',
+			columns: [t.recorded_by],
+			foreignColumns: [users.id]
+		}).onDelete('cascade')
+	]
+);
+
+// Verifikasi email PPDB: link one-time, token unik, session cookie setelah terverifikasi
+
 // Schema gabungan untuk migrasi & query
 export const schema = {
 	schools,
@@ -1127,7 +1228,9 @@ export const schema = {
 	ppdbRegistrationDocuments,
 	collectionProjects,
 	collectionProjectTargets,
-	collectionSubmissions
+	collectionSubmissions,
+	piketKbmRequests,
+	piketKbmManualAbsences
 };
 
 export type School = typeof schools.$inferSelect;
@@ -1178,6 +1281,10 @@ export type PpdbBatch = typeof ppdbBatches.$inferSelect;
 export type NewPpdbBatch = typeof ppdbBatches.$inferInsert;
 export type PpdbRegistration = typeof ppdbRegistrations.$inferSelect;
 export type NewPpdbRegistration = typeof ppdbRegistrations.$inferInsert;
+export type PiketKbmRequest = typeof piketKbmRequests.$inferSelect;
+export type NewPiketKbmRequest = typeof piketKbmRequests.$inferInsert;
+export type PiketKbmManualAbsence = typeof piketKbmManualAbsences.$inferSelect;
+export type NewPiketKbmManualAbsence = typeof piketKbmManualAbsences.$inferInsert;
 export type PpdbTrack = typeof ppdbTracks.$inferSelect;
 export type NewPpdbTrack = typeof ppdbTracks.$inferInsert;
 export type PpdbRegistrationDocument = typeof ppdbRegistrationDocuments.$inferSelect;
