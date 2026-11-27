@@ -427,7 +427,7 @@ async function finishDocScan() {
 	</header>
 
 	<!-- Header Content -->
-	<div class="max-w-4xl mx-auto px-3 sm:px-4 pt-5 sm:pt-8 pb-3">
+	<div class="max-w-4xl mx-auto px-4 sm:px-6 pt-5 sm:pt-8 pb-3">
 		<div class="bg-gradient-to-r from-blue-700 to-indigo-800 text-white rounded-2xl p-5 sm:p-8 shadow-sm">
 			<div class="flex items-start gap-4">
 				{#if data.lockedSchool?.logo}
@@ -481,15 +481,20 @@ async function finishDocScan() {
 				novalidate
 				bind:this={formEl}
 				onsubmit={handleSubmit}
-				class="mt-4 sm:mt-6 space-y-4 sm:space-y-6"
+				class="mt-4 sm:mt-6 space-y-5 sm:space-y-6"
 			>
 				<!-- Progress Indicator -->
-				<div class="bg-card rounded-2xl border border-border shadow-sm p-4 sm:p-5">
-					<div class="flex items-center justify-between mb-3">
-						<p class="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Langkah {step} dari {TOTAL_STEPS}</p>
-						<p class="text-sm font-bold text-primary-foreground">{stepMeta[step - 1].label}</p>
+				<div class="bg-card rounded-2xl border border-border shadow-sm p-5 sm:p-6">
+					<div class="flex items-center justify-between gap-3 mb-3">
+						<p class="text-base font-semibold text-muted-foreground uppercase tracking-wide">Langkah {step} dari {TOTAL_STEPS}</p>
+						<p class="text-base font-bold text-primary-foreground truncate">{stepMeta[step - 1].label}</p>
 					</div>
-					<div class="flex items-center">
+					<div class="sm:hidden flex items-center gap-1.5 mb-1" aria-hidden="true">
+						{#each stepMeta as s (s.n)}
+							<div class="h-1.5 flex-1 rounded-full {s.n <= step ? 'bg-primary' : 'bg-slate-200'}"></div>
+						{/each}
+					</div>
+					<div class="hidden sm:flex items-center">
 						{#each stepMeta as s, i (s.n)}
 							<button
 								type="button"
@@ -499,7 +504,7 @@ async function finishDocScan() {
 								class:flex-1={i < stepMeta.length}
 							>
 								<span
-									class="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-colors
+									class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-colors
 									{s.n < step
 										? 'bg-success/100 border-emerald-500 text-success-foreground'
 										: s.n === step
@@ -508,15 +513,11 @@ async function finishDocScan() {
 								>
 									{#if s.n < step}✓{:else}{s.n}{/if}
 								</span>
-								<span
-									class="text-sm font-medium {s.n === step ? 'text-primary-foreground' : 'text-muted-foreground'}"
-								>{s.label}</span>
+								<span class="text-sm font-medium {s.n === step ? 'text-primary-foreground' : 'text-muted-foreground'}">{s.label}</span>
 							</button>
 							{#if i < stepMeta.length - 1}
-								<div
-									class="h-0.5 flex-1 mx-0.5 sm:mx-1 -mt-5 sm:-mt-[22px] transition-colors
-									{s.n < step ? 'bg-success/100' : 'bg-slate-200'}"
-								></div>
+								<div class="h-0.5 flex-1 mx-1 -mt-[22px] transition-colors
+									{s.n < step ? 'bg-success/100' : 'bg-slate-200'}"></div>
 							{/if}
 						{/each}
 					</div>
@@ -524,18 +525,18 @@ async function finishDocScan() {
 
 				<!-- STEP 1: Pilihan Gelombang & Sekolah -->
 				<div data-step="1" class:hidden={step !== 1}>
-					<div class="bg-card p-4 sm:p-6 rounded-2xl border border-border shadow-sm space-y-4">
+					<div class="bg-card p-5 sm:p-6 rounded-2xl border border-border shadow-sm space-y-5">
 						<div class="border-b border-border pb-3">
-							<h2 class="text-base font-bold text-foreground flex items-center gap-2">
+							<h2 class="text-lg sm:text-xl font-bold text-foreground flex items-center gap-2">
 								<span class="w-6 h-6 rounded-full bg-primary/10 text-primary-foreground text-sm flex items-center justify-center font-bold">1</span>
 								Pilihan Gelombang & Sekolah
 							</h2>
-							<p class="text-sm text-muted-foreground mt-0.5">Pilih sekolah tujuan terlebih dahulu, lalu gelombang pendaftarannya.</p>
+							<p class="text-base text-muted-foreground mt-0.5">Pilih sekolah tujuan terlebih dahulu, lalu gelombang pendaftarannya.</p>
 						</div>
 
 						<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 							<div>
-								<label for="school_id" class="block text-sm font-semibold text-foreground mb-1.5">Sekolah Tujuan <span class="text-destructive">*</span></label>
+								<label for="school_id" class="block text-base font-semibold text-foreground mb-1.5">Sekolah Tujuan <span class="text-destructive">*</span></label>
 								{#if data.lockedSchool}
 									<input type="hidden" name="school_id" value={data.lockedSchool.id} />
 									<div class="w-full px-3 py-3 sm:py-2.5 bg-muted/50 border border-border rounded-xl text-base font-semibold text-foreground">
@@ -559,7 +560,7 @@ async function finishDocScan() {
 							</div>
 
 							<div>
-								<label for="batch_id" class="block text-sm font-semibold text-foreground mb-1.5">Gelombang Pendaftaran <span class="text-destructive">*</span></label>
+								<label for="batch_id" class="block text-base font-semibold text-foreground mb-1.5">Gelombang Pendaftaran <span class="text-destructive">*</span></label>
 								<select
 									id="batch_id"
 									name="batch_id"
@@ -589,18 +590,18 @@ async function finishDocScan() {
 
 				<!-- STEP 2: Data Pribadi -->
 				<div data-step="2" class:hidden={step !== 2}>
-					<div class="bg-card p-4 sm:p-6 rounded-2xl border border-border shadow-sm space-y-4">
+					<div class="bg-card p-5 sm:p-6 rounded-2xl border border-border shadow-sm space-y-5">
 						<div class="border-b border-border pb-3">
-							<h2 class="text-base font-bold text-foreground flex items-center gap-2">
+							<h2 class="text-lg sm:text-xl font-bold text-foreground flex items-center gap-2">
 								<span class="w-6 h-6 rounded-full bg-primary/10 text-primary-foreground text-sm flex items-center justify-center font-bold">2</span>
 								Data Pribadi Calon Peserta Didik
 							</h2>
-							<p class="text-sm text-muted-foreground mt-0.5">Identitas calon siswa sesuai dokumen resmi.</p>
+							<p class="text-base text-muted-foreground mt-0.5">Identitas calon siswa sesuai dokumen resmi.</p>
 						</div>
 
 						<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 							<div class="sm:col-span-2">
-								<label for="full_name" class="block text-sm font-semibold text-foreground mb-1.5">Nama Lengkap <span class="text-destructive">*</span></label>
+								<label for="full_name" class="block text-base font-semibold text-foreground mb-1.5">Nama Lengkap <span class="text-destructive">*</span></label>
 								<input
 									id="full_name"
 									type="text"
@@ -613,7 +614,7 @@ async function finishDocScan() {
 							</div>
 
 							<div>
-								<label for="nisn" class="block text-sm font-semibold text-foreground mb-1.5">NISN (10 Digit Angka)</label>
+								<label for="nisn" class="block text-base font-semibold text-foreground mb-1.5">NISN (10 Digit Angka)</label>
 								<input
 									id="nisn"
 									type="text"
@@ -626,7 +627,7 @@ async function finishDocScan() {
 							</div>
 
 							<div>
-								<label for="nik" class="block text-sm font-semibold text-foreground mb-1.5">NIK / No. KTP (16 Digit)</label>
+								<label for="nik" class="block text-base font-semibold text-foreground mb-1.5">NIK / No. KTP (16 Digit)</label>
 								<input
 									id="nik"
 									type="text"
@@ -640,7 +641,7 @@ async function finishDocScan() {
 							</div>
 
 							<div>
-								<label for="gender" class="block text-sm font-semibold text-foreground mb-1.5">Jenis Kelamin <span class="text-destructive">*</span></label>
+								<label for="gender" class="block text-base font-semibold text-foreground mb-1.5">Jenis Kelamin <span class="text-destructive">*</span></label>
 								<select
 									id="gender"
 									name="gender"
@@ -654,7 +655,7 @@ async function finishDocScan() {
 							</div>
 
 							<div>
-								<label for="religion" class="block text-sm font-semibold text-foreground mb-1.5">Agama</label>
+								<label for="religion" class="block text-base font-semibold text-foreground mb-1.5">Agama</label>
 								<select
 									id="religion"
 									name="religion"
@@ -671,7 +672,7 @@ async function finishDocScan() {
 							</div>
 
 							<div>
-								<label for="birth_place" class="block text-sm font-semibold text-foreground mb-1.5">Tempat Lahir</label>
+								<label for="birth_place" class="block text-base font-semibold text-foreground mb-1.5">Tempat Lahir</label>
 								<input
 									id="birth_place"
 									type="text"
@@ -683,7 +684,7 @@ async function finishDocScan() {
 							</div>
 
 						<div>
-							<label for="birth_date" class="block text-sm font-semibold text-foreground mb-1.5">Tanggal Lahir <span class="text-destructive">*</span></label>
+							<label for="birth_date" class="block text-base font-semibold text-foreground mb-1.5">Tanggal Lahir <span class="text-destructive">*</span></label>
 							<input
 								id="birth_date"
 								type="date"
@@ -711,7 +712,7 @@ async function finishDocScan() {
 							<button
 								type="button"
 								onclick={openCamera}
-								class="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-sm font-bold rounded-xl shadow-md transition-all active:scale-[0.98]"
+								class="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-base font-bold rounded-xl shadow-md transition-all active:scale-[0.98]"
 							>
 								<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 									<path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.127 2.127 0 0 1 9 5h6a2.127 2.127 0 0 1 2.172 1.175M9 5h-.414A4.598 4.598 0 0 0 4.2 8.586V14m15.8 0V8.586A4.598 4.598 0 0 0 18.414 5H18"/>
@@ -724,7 +725,7 @@ async function finishDocScan() {
 							<button
 								type="button"
 								onclick={() => fileInputEl?.click()}
-								class="inline-flex items-center gap-2 px-5 py-3 bg-muted hover:bg-slate-200 text-foreground text-sm font-semibold rounded-xl transition-colors"
+								class="inline-flex items-center gap-2 px-5 py-3 bg-muted hover:bg-slate-200 text-foreground text-base font-semibold rounded-xl transition-colors"
 							>
 								<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 									<path stroke-linecap="round" stroke-linejoin="round" d="M4.25 15.75A2.25 2.25 0 0 1 6.5 13.5h11a2.25 2.25 0 0 1 2.25 2.25M4.25 15.75V18a.75.75 0 0 0 .75.75h14.1a.75.75 0 0 0 .75-.75v-2.25M4.25 15.75l1.25-4.5h13l1.25 4.5M12 8a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>
@@ -780,7 +781,7 @@ async function finishDocScan() {
 												type="button"
 												onclick={capturePhoto}
 												disabled={!mediaStream}
-												class="flex-1 py-3 bg-success hover:bg-success/90 disabled:bg-slate-300 text-success-foreground text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+												class="flex-1 py-3 bg-success hover:bg-success/90 disabled:bg-slate-300 text-success-foreground text-base font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
 											>
 												<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 													<path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.127 2.127 0 0 1 9 5h6a2.127 2.127 0 0 1 2.172 1.175M18 12.33V18a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-5.67M12 9.5a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/>
@@ -790,7 +791,7 @@ async function finishDocScan() {
 											<button
 												type="button"
 												onclick={closeCamera}
-												class="px-4 py-3 bg-muted hover:bg-slate-200 text-muted-foreground text-sm font-medium rounded-xl transition-colors"
+												class="px-4 py-3 bg-muted hover:bg-slate-200 text-muted-foreground text-base font-medium rounded-xl transition-colors"
 											>
 												Batal
 											</button>
@@ -823,7 +824,7 @@ async function finishDocScan() {
 										{#each docPages as page, idx (idx)}
 											<div class="flex items-center gap-2 bg-muted rounded p-1 border">
 												<img src={page.url} class="w-10 h-10 object-cover rounded bg-white" alt="halaman" />
-												<span class="text-xs text-muted-foreground truncate flex-1">{page.enhanced ? 'Scan' : 'Foto'} {page.width}×{page.height}</span>
+												<span class="text-sm text-muted-foreground truncate flex-1">{page.enhanced ? 'Scan' : 'Foto'} {page.width}×{page.height}</span>
 												<button type="button" onclick={() => removeDocPage(idx)} class="p-1 text-destructive hover:bg-red-50 rounded" aria-label="Hapus halaman">×</button>
 											</div>
 										{/each}
@@ -849,7 +850,7 @@ async function finishDocScan() {
 										type="button"
 										onclick={captureDocPage}
 										disabled={!docStream}
-										class="flex-1 py-3 bg-success hover:bg-success/90 disabled:bg-slate-300 text-success-foreground text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+										class="flex-1 py-3 bg-success hover:bg-success/90 disabled:bg-slate-300 text-success-foreground text-base font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
 									>
 										<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 											<path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.127 2.127 0 0 1 9 5h6a2.127 2.127 0 0 1 2.172 1.175M18 12.33V18a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-5.67M12 9.5a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z" />
@@ -859,14 +860,14 @@ async function finishDocScan() {
 									<button
 										type="button"
 										onclick={closeDocCamera}
-										class="px-4 py-3 bg-muted hover:bg-slate-200 text-muted-foreground text-sm font-medium rounded-xl transition-colors"
+										class="px-4 py-3 bg-muted hover:bg-slate-200 text-muted-foreground text-base font-medium rounded-xl transition-colors"
 									>
 										Batal
 									</button>
 								{#if docEnhance}
-									<button type="button" onclick={toggleEnhance} class="w-full py-2 text-xs text-muted-foreground hover:text-foreground border border-border rounded-lg">Matikan peningkatan (scan)</button>
+									<button type="button" onclick={toggleEnhance} class="w-full py-2 text-sm text-muted-foreground hover:text-foreground border border-border rounded-lg">Matikan peningkatan (scan)</button>
 								{:else}
-									<button type="button" onclick={toggleEnhance} class="w-full py-2 text-xs text-muted-foreground hover:text-foreground border border-border rounded-lg">Aktifkan peningkatan (scan)</button>
+									<button type="button" onclick={toggleEnhance} class="w-full py-2 text-sm text-muted-foreground hover:text-foreground border border-border rounded-lg">Aktifkan peningkatan (scan)</button>
 								{/if}
 								{#if docPages.length > 0}
 									<button type="button" onclick={finishDocScan} disabled={docConverting[docCameraKey ?? '']} class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white text-sm font-bold rounded-xl transition-colors">📄 Simpan {docPages.length} Halaman</button>
@@ -885,7 +886,7 @@ async function finishDocScan() {
 							<h3 class="text-sm font-bold text-foreground flex items-center gap-2">
 								<span>📎</span> Dokumen Persyaratan
 							</h3>
-							<p class="text-sm text-muted-foreground">Foto/gambar otomatis dikonversi ke PDF terkompresi. Maks 10 MB per file.</p>
+							<p class="text-base text-muted-foreground">Foto/gambar otomatis dikonversi ke PDF terkompresi. Maks 10 MB per file.</p>
 							{#each currentBatch.documentRequirements.fields as doc (doc.key)}
 								<div class="space-y-1.5">
 									<label for={`doc_${doc.key}`} class="block text-sm font-semibold text-foreground">
@@ -900,7 +901,7 @@ async function finishDocScan() {
 										required={doc.required}
 										onchange={(e) => onDocFileChange(doc.key, e)}
 										bind:this={docInputs[doc.key]}
-										class="w-full px-3 py-2 bg-background border border-border rounded-xl text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-primary/10 file:text-primary-foreground file:font-semibold file:text-sm hover:file:bg-primary/20"
+										class="w-full px-3 py-2 bg-background border border-border rounded-xl text-base file:mr-3 file:py-2.5 file:px-3 file:rounded-lg file:border-0 file:bg-primary/10 file:text-primary-foreground file:font-semibold file:text-sm hover:file:bg-primary/20"
 									/>
 									<button
 										type="button"
@@ -910,7 +911,7 @@ async function finishDocScan() {
 										📷 Ambil Foto Kamera
 									</button>
 									{#if docConverting[doc.key]}
-										<p class="text-sm text-muted-foreground">⏳ Mengonversi ke PDF terkompresi...</p>
+										<p class="text-base text-muted-foreground">⏳ Mengonversi ke PDF terkompresi...</p>
 									{:else if uploadedDocs[doc.key]}
 										<p class="text-sm text-success-foreground">✓ {uploadedDocs[doc.key]?.name} · {Math.round((uploadedDocs[doc.key]?.size ?? 0) / 1024)} KB</p>
 									{/if}
@@ -923,18 +924,18 @@ async function finishDocScan() {
 
 				<!-- STEP 3: Alamat & Kontak -->
 				<div data-step="3" class:hidden={step !== 3}>
-					<div class="bg-card p-4 sm:p-6 rounded-2xl border border-border shadow-sm space-y-4">
+					<div class="bg-card p-5 sm:p-6 rounded-2xl border border-border shadow-sm space-y-5">
 						<div class="border-b border-border pb-3">
-							<h2 class="text-base font-bold text-foreground flex items-center gap-2">
+							<h2 class="text-lg sm:text-xl font-bold text-foreground flex items-center gap-2">
 								<span class="w-6 h-6 rounded-full bg-primary/10 text-primary-foreground text-sm flex items-center justify-center font-bold">3</span>
 								Alamat & Kontak Calon Siswa
 							</h2>
-							<p class="text-sm text-muted-foreground mt-0.5">Alamat domisili saat ini dan kontak yang aktif dihubungi.</p>
+							<p class="text-base text-muted-foreground mt-0.5">Alamat domisili saat ini dan kontak yang aktif dihubungi.</p>
 						</div>
 
 						<div class="space-y-4">
 							<div>
-								<label for="address" class="block text-sm font-semibold text-foreground mb-1.5">Alamat Lengkap (Jalan, RT/RW, Dusun, Desa/Kelurahan, Kecamatan) <span class="text-destructive">*</span></label>
+								<label for="address" class="block text-base font-semibold text-foreground mb-1.5">Alamat Lengkap (Jalan, RT/RW, Dusun, Desa/Kelurahan, Kecamatan) <span class="text-destructive">*</span></label>
 								<textarea
 									id="address"
 									name="address"
@@ -947,7 +948,7 @@ async function finishDocScan() {
 
 							<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 								<div>
-									<label for="phone" class="block text-sm font-semibold text-foreground mb-1.5">No. HP / WhatsApp Siswa</label>
+									<label for="phone" class="block text-base font-semibold text-foreground mb-1.5">No. HP / WhatsApp Siswa</label>
 									<input
 										id="phone"
 										type="tel"
@@ -960,7 +961,7 @@ async function finishDocScan() {
 								</div>
 
 								<div>
-									<label for="email" class="block text-sm font-semibold text-foreground mb-1.5">Email Siswa (Aktif)</label>
+									<label for="email" class="block text-base font-semibold text-foreground mb-1.5">Email Siswa (Aktif)</label>
 									<input
 										id="email"
 										type="email"
@@ -978,18 +979,18 @@ async function finishDocScan() {
 
 				<!-- STEP 4: Asal Sekolah, Jalur & Pilihan Jurusan -->
 				<div data-step="4" class:hidden={step !== 4}>
-					<div class="bg-card p-4 sm:p-6 rounded-2xl border border-border shadow-sm space-y-4">
+					<div class="bg-card p-5 sm:p-6 rounded-2xl border border-border shadow-sm space-y-5">
 						<div class="border-b border-border pb-3">
-							<h2 class="text-base font-bold text-foreground flex items-center gap-2">
+							<h2 class="text-lg sm:text-xl font-bold text-foreground flex items-center gap-2">
 								<span class="w-6 h-6 rounded-full bg-primary/10 text-primary-foreground text-sm flex items-center justify-center font-bold">4</span>
 								Asal Sekolah, Jalur & Peminatan
 							</h2>
-							<p class="text-sm text-muted-foreground mt-0.5">Riwayat pendidikan sebelumnya dan jurusan yang diinginkan.</p>
+							<p class="text-base text-muted-foreground mt-0.5">Riwayat pendidikan sebelumnya dan jurusan yang diinginkan.</p>
 						</div>
 
 						<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 							<div>
-								<label for="previous_school" class="block text-sm font-semibold text-foreground mb-1.5">Nama Sekolah Asal <span class="text-destructive">*</span></label>
+								<label for="previous_school" class="block text-base font-semibold text-foreground mb-1.5">Nama Sekolah Asal <span class="text-destructive">*</span></label>
 								<input
 									id="previous_school"
 									type="text"
@@ -1002,7 +1003,7 @@ async function finishDocScan() {
 							</div>
 
 							<div>
-								<label for="graduation_year" class="block text-sm font-semibold text-foreground mb-1.5">Tahun Lulus Sekolah Asal</label>
+								<label for="graduation_year" class="block text-base font-semibold text-foreground mb-1.5">Tahun Lulus Sekolah Asal</label>
 								<input
 									id="graduation_year"
 									type="number"
@@ -1016,7 +1017,7 @@ async function finishDocScan() {
 							</div>
 
 							<div>
-								<label for="track" class="block text-sm font-semibold text-foreground mb-1.5">Jalur Pendaftaran <span class="text-destructive">*</span></label>
+								<label for="track" class="block text-base font-semibold text-foreground mb-1.5">Jalur Pendaftaran <span class="text-destructive">*</span></label>
 								<select
 									id="track"
 									name="track"
@@ -1031,7 +1032,7 @@ async function finishDocScan() {
 							</div>
 
 							<div>
-								<label for="major_choice" class="block text-sm font-semibold text-foreground mb-1.5">Pilihan Jurusan / Peminatan <span class="text-destructive">*</span></label>
+								<label for="major_choice" class="block text-base font-semibold text-foreground mb-1.5">Pilihan Jurusan / Peminatan <span class="text-destructive">*</span></label>
 								<select
 									id="major_choice"
 									name="major_choice"
@@ -1051,18 +1052,18 @@ async function finishDocScan() {
 
 				<!-- STEP 5: Data Orang Tua / Wali + Pernyataan -->
 				<div data-step="5" class:hidden={step !== 5}>
-					<div class="bg-card p-4 sm:p-6 rounded-2xl border border-border shadow-sm space-y-4">
+					<div class="bg-card p-5 sm:p-6 rounded-2xl border border-border shadow-sm space-y-5">
 						<div class="border-b border-border pb-3">
-							<h2 class="text-base font-bold text-foreground flex items-center gap-2">
+							<h2 class="text-lg sm:text-xl font-bold text-foreground flex items-center gap-2">
 								<span class="w-6 h-6 rounded-full bg-primary/10 text-primary-foreground text-sm flex items-center justify-center font-bold">5</span>
 								Data Orang Tua / Wali
 							</h2>
-							<p class="text-sm text-muted-foreground mt-0.5">Identitas penanggung jawab calon peserta didik.</p>
+							<p class="text-base text-muted-foreground mt-0.5">Identitas penanggung jawab calon peserta didik.</p>
 						</div>
 
 						<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 							<div class="sm:col-span-2">
-								<label for="parent_name" class="block text-sm font-semibold text-foreground mb-1.5">Nama Ayah / Ibu / Wali <span class="text-destructive">*</span></label>
+								<label for="parent_name" class="block text-base font-semibold text-foreground mb-1.5">Nama Ayah / Ibu / Wali <span class="text-destructive">*</span></label>
 								<input
 									id="parent_name"
 									type="text"
@@ -1075,7 +1076,7 @@ async function finishDocScan() {
 							</div>
 
 							<div>
-								<label for="parent_phone" class="block text-sm font-semibold text-foreground mb-1.5">No. HP / WA Orang Tua <span class="text-destructive">*</span></label>
+								<label for="parent_phone" class="block text-base font-semibold text-foreground mb-1.5">No. HP / WA Orang Tua <span class="text-destructive">*</span></label>
 								<input
 									id="parent_phone"
 									type="tel"
@@ -1089,7 +1090,7 @@ async function finishDocScan() {
 							</div>
 
 							<div>
-								<label for="parent_job" class="block text-sm font-semibold text-foreground mb-1.5">Pekerjaan Orang Tua</label>
+								<label for="parent_job" class="block text-base font-semibold text-foreground mb-1.5">Pekerjaan Orang Tua</label>
 								<input
 									id="parent_job"
 									type="text"
@@ -1101,7 +1102,7 @@ async function finishDocScan() {
 							</div>
 						</div>
 
-						<label class="flex items-start gap-3 cursor-pointer text-sm text-foreground leading-relaxed bg-primary/10/50 p-4 rounded-xl border border-border">
+						<label class="flex items-start gap-3 cursor-pointer text-base text-foreground leading-relaxed bg-primary/10/50 p-4 rounded-xl border border-border">
 							<input type="checkbox" required class="w-4 h-4 mt-0.5 rounded text-primary-foreground focus:ring-ring border-slate-300 shrink-0" />
 							<span>
 								Saya menyatakan bahwa data yang diisikan dalam formulir pendaftaran ini adalah <strong>benar, sah, dan dapat dipertanggungjawabkan</strong>. Apabila di kemudian hari ditemukan ketidakbenaran data, saya bersedia menerima sanksi pembatalan kelulusan.
@@ -1116,7 +1117,7 @@ async function finishDocScan() {
 						<button
 							type="button"
 							onclick={goPrev}
-							class="flex-1 sm:flex-none sm:w-40 py-3.5 px-4 bg-card border border-slate-300 hover:bg-background text-foreground font-semibold text-sm rounded-xl transition-colors"
+							class="flex-1 sm:flex-none sm:w-40 py-3.5 px-4 bg-card border border-slate-300 hover:bg-background text-foreground font-semibold text-base rounded-xl transition-colors"
 						>
 							← Kembali
 						</button>
@@ -1126,14 +1127,14 @@ async function finishDocScan() {
 						<button
 							type="button"
 							onclick={goNext}
-							class="flex-1 py-3.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm rounded-xl shadow-md transition-all active:scale-[0.98]"
+							class="flex-1 py-3.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-base rounded-xl shadow-md transition-all active:scale-[0.98]"
 						>
 							Lanjut →
 						</button>
 					{:else}
 						<button
 							type="submit"
-							class="flex-1 py-3.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-sm rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+							class="flex-1 py-3.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-base rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-2"
 						>
 							<span>Kirim Pendaftaran</span>
 							<span>🚀</span>
@@ -1141,7 +1142,7 @@ async function finishDocScan() {
 					{/if}
 				</div>
 
-				<p class="text-center text-sm text-muted-foreground">
+				<p class="text-center text-base text-muted-foreground">
 					Langkah {step}/{TOTAL_STEPS} — data tersimpan selama berpindah langkah sebelum dikirim.
 				</p>
 			</form>
