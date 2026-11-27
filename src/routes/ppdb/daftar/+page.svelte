@@ -114,7 +114,11 @@
 		photoBlobUrl = URL.createObjectURL(f);
 	}
 
-	async function openCamera() {
+	function sleep(ms: number): Promise<void> {
+	return new Promise((r) => setTimeout(r, ms));
+}
+
+async function openCamera() {
 		showingCamera = true;
 		loadingCam = true;
 		cameraError = '';
