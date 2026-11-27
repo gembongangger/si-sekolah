@@ -725,7 +725,7 @@ async function finishDocScan() {
 							<button
 								type="button"
 								onclick={() => fileInputEl?.click()}
-								class="inline-flex items-center gap-2 px-5 py-3 bg-muted hover:bg-slate-200 text-foreground text-base font-semibold rounded-xl transition-colors"
+								class="inline-flex items-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors"
 							>
 								<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 									<path stroke-linecap="round" stroke-linejoin="round" d="M4.25 15.75A2.25 2.25 0 0 1 6.5 13.5h11a2.25 2.25 0 0 1 2.25 2.25M4.25 15.75V18a.75.75 0 0 0 .75.75h14.1a.75.75 0 0 0 .75-.75v-2.25M4.25 15.75l1.25-4.5h13l1.25 4.5M12 8a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>
@@ -901,7 +901,7 @@ async function finishDocScan() {
 										required={doc.required}
 										onchange={(e) => onDocFileChange(doc.key, e)}
 										bind:this={docInputs[doc.key]}
-										class="w-full px-3 py-2 bg-background border border-border rounded-xl text-base file:mr-3 file:py-2.5 file:px-3 file:rounded-lg file:border-0 file:bg-primary/10 file:text-primary-foreground file:font-semibold file:text-sm hover:file:bg-primary/20"
+										class="w-full px-3 py-2 bg-background border border-border rounded-xl text-base file:mr-3 file:py-2.5 file:px-3 file:rounded-lg file:border-0 file:bg-blue-600 file:text-white file:font-semibold file:text-base hover:file:bg-blue-700"
 									/>
 									<button
 										type="button"
